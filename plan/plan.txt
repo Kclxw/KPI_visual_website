@@ -1,0 +1,45 @@
+#背景：我是一个联想质量部门的开发人员，主要是面向联想的电子产品开发一些实用的售后数据分析功能帮助联想的PQM实现高效的数据分析工作
+项目采用前后端分离的架构实现，前端采用vue，后端采用python FastAPI 和 LLM，数据库为mysql
+#首先阐述一下功能：
+用户上传依次上传四个excel文档，分别是IFIR Detail, IFIR Row, RA Detail, RA Row；系统对excel文件进行
+依次操作：数据清洗，数据入库，数据库更新，前端界面刷新展示。
+用户可以选择IFIR和RA分析
+IFIR分析：
+    提供ODM层，Segment层，Model层三层分析
+    ODM：
+        在选定月份范围内，输出“月 → ODM → Model”的 RA 表现与趋势，找出该层 Top Issue 与 Top Model，并可明细追溯明细与 AI 总结。
+    Segment层：
+        按 Segment 输出整体表现、趋势与 Top 贡献者（机型）/主要问题（Issue）。
+    Model层：
+        针对选定 Model 输出月趋势 + Top Issue（不做 Top Model）。
+RA分析：
+    提供ODM层，Segment层，Model层三层分析
+    ODM：
+        在选定月份范围内，输出“月 → ODM → Model”的 RA 表现与趋势，找出该层 Top Issue 与 Top Model，并可明细追溯明细与 AI 总结。
+    Segment层：
+        按 Segment 输出整体表现、趋势与 Top 贡献者（机型）/主要问题（Issue）。
+    Model层：
+        针对选定 Model 输出月趋势 + Top Issue（不做 Top Model）。
+
+AI分析
+    主要是针对每个分析的内容，比如ODM，从Detail表中抓取详细的用户comments,交给大模型来实现不同维度的分析
+    比如：
+        集中问题有哪些
+        问题复现方向是什么
+接下来就是各类详细的信息展示：
+    /Excel数据解释：将为你解释excel数据的详细关系和字段的详细解释，重点字段
+    /主要功能：系统最主要功能的设计思路
+      /IFIR 
+        /IFIR-Model分析功能.md
+        /IFIR-ODM分析功能.md
+        /IFIR-Segment分析功能.md
+      /RA
+        /RA-Model分析功能.md
+        /RA-ODM分析功能.md
+        /RA-Segment分析功能.md
+    /数据库：数据库的设计思路
+    /AI：AI分析的主要功能
+    /前端设计: 前端界面的一些原型要求和原型图设计
+    /边界：系统遵守的一些硬性规则
+
+    

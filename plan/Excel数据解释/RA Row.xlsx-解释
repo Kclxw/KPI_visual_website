@@ -1,0 +1,107 @@
+# RA ROW 表内容解释（最终确认版）
+---
+## 1️⃣ RA ROW 是什么（What）
+**RA ROW** 是用于支撑 **RA（维修率 / 机·月）** 指标的**月度汇总事实表**。
+* **数据来源**：由 RA DETAIL 按一定维度聚合生成
+* **核心用途**：
+  * 提供 RA 计算所需的 **分子（RA CLAIM）与分母（RA MM）**
+  * 支撑 RA 的多维分析（Model / ODM / 平台 / 月度）
+* **注意**：
+  RA ROW **不是最终“一行一个 RA 结果”的成品表**，而是一个**用于分析展开的中间事实表**
+---
+## 2️⃣ RA ROW 的真实统计主轴（非常重要）
+### ✅ 时间主轴
+* **Claim_month**
+  索赔 / 维修事件发生的月份
+  * RA 指标**唯一合法的时间口径**
+  * 所有 RA 计算均基于该字段
+---
+### ✅ 产品主轴
+* **Model**
+  产品营销型号
+  * 用于对外产品维度分析
+* **Mach_type**
+  机型平台 / 工程实体
+  * 表示真实的硬件平台差异
+  * 在同一 Model 下可能存在多个 Mach_type
+---
+### ✅ 责任 / 分析主轴
+* **Supplier_NEW（ODM）**
+  ODM 厂商
+  * RA 的**核心分析与责任归因维度**
+  * 一个 ODM 可对应多个工厂
+---
+## 3️⃣ RA ROW 中的字段结构说明（Schema）
+### A. 核心统计字段（RA 定义本体）
+* **RA CLAIM**
+  当月发生的维修事件数
+  * 来自 RA DETAIL
+  * 按 Claim_Nbr 去重后聚合
+* **RA MM**
+  当月处于保修期内的机器总数
+  * 表示当月“可能发生维修”的设备基数
+  * 不来自 DETAIL 表
+---
+### B. 分析与归属维度（用于拆分与对比）
+* **Supplier_NEW**：ODM 厂商（主分析维度）
+* **Mach_type**：机型平台（工程差异）
+* **PLANT_OLD**：历史/归属工厂
+  * 用于数据生成与历史归属
+  * **不作为最终分析主轴**
+* **GEO / BRAND / SERIES / Segment / Product_line**
+  * 标签类字段
+  * 用于筛选与分组展示
+---
+### C. 非核心字段（可忽略）
+
+* **Year / Month**
+
+  * 由 Claim_month 拆分得到
+  * 不参与任何统计或唯一性定义
+---
+## 4️⃣ 唯一性与数据粒度（必须如实说明）
+### ❌ RA ROW 不存在“单一简单唯一键”
+经对 Excel 原始数据计算验证：
+* 以下组合 **均不能唯一标识一行**：
+  * Claim_month + Model
+  * Claim_month + Model + ODM
+  * Claim_month + Model + ODM + Mach_type
+### ✅ 数据层面的最小不可分解粒度为：
+```
+Claim_month
++ Model
++ Supplier_NEW
++ Mach_type
++ PLANT_OLD
+```
+> 这说明：
+> RA ROW 在数据层仍保留了 **历史工厂（PLANT_OLD）拆分**
+---
+## 5️⃣ 正确理解 RA ROW 的角色（关键结论）
+> **RA ROW 是一个“半汇总事实表”，而不是最终指标表。**
+* 一行 RA ROW ≠ 一个最终 RA 结果
+* RA 必须在**选定分析口径后重新聚合计算**
+---
+
+## 6️⃣ 正确的 RA 计算方式（标准用法）
+### 正确计算逻辑
+```
+RA = sum(RA CLAIM) / sum(RA MM)
+```
+> ⚠️ 必须先聚合，再计算
+> ❌ 禁止直接用单行 `RA CLAIM / RA MM`
+---
+## 7️⃣ RA ROW 与 RA DETAIL 的关系
+* **RA DETAIL**：
+  * 事件级明细（一次维修 = 一行）
+  * 决定 RA CLAIM 的来源
+* **RA ROW**：
+  * 月度 × 产品 × 分析维度的汇总结果
+  * 提供 RA 计算所需的分子与分母
+### 正确使用路径
+```
+RA ROW
+  → 发现高 RA 的月 / Model / ODM / 平台
+    → RA DETAIL
+      → 下钻到 PLANT / Station / Part / Problem
+```

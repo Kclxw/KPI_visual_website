@@ -1,0 +1,117 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/api/v1/ifir/odm-analysis/analyze",
+    "body": {
+      "time_range": {
+        "start_month": "2025-07",
+        "end_month": "2025-12"
+      },
+      "filters": {
+        "odms": ["FOXCONN", "HUNTKEY"],
+        "segments": [],
+        "models": []
+      },
+      "view": {
+        "trend_months": 6,
+        "top_model_n": 3
+      }
+    }
+  },
+  "response": {
+    "code": 1000,
+    "message": "success",
+    "data": {
+      "meta": {
+        "data_as_of": "2025-12",
+        "time_range": {
+          "start_month": "2025-07",
+          "end_month": "2025-12"
+        },
+        "filters_applied": {
+          "odms": ["FOXCONN", "HUNTKEY"],
+          "segments": [],
+          "models": []
+        }
+      },
+      "cards": [
+        {
+          "odm": "FOXCONN",
+          "trend": [
+            { "month": "2025-07", "ifir": 0.00012, "box_claim": 120, "box_mm": 1000000 },
+            { "month": "2025-08", "ifir": 0.00010, "box_claim": 100, "box_mm": 1000000 },
+            { "month": "2025-09", "ifir": 0.00015, "box_claim": 150, "box_mm": 1000000 },
+            { "month": "2025-10", "ifir": 0.00011, "box_claim": 110, "box_mm": 1000000 },
+            { "month": "2025-11", "ifir": 0.00009, "box_claim": 90, "box_mm": 1000000 },
+            { "month": "2025-12", "ifir": 0.00008, "box_claim": 80, "box_mm": 1000000 }
+          ],
+          "top_models": [
+            {
+              "rank": 1,
+              "model": "T24A-20",
+              "ifir": 0.00030,
+              "box_claim": 30,
+              "box_mm": 100000,
+              "contribution": 0.32
+            },
+            {
+              "rank": 2,
+              "model": "Y27QF-30",
+              "ifir": 0.00025,
+              "box_claim": 25,
+              "box_mm": 100000,
+              "contribution": 0.27
+            },
+            {
+              "rank": 3,
+              "model": "G27C-10",
+              "ifir": 0.00020,
+              "box_claim": 20,
+              "box_mm": 100000,
+              "contribution": 0.22
+            }
+          ],
+          "ai_summary": "该ODM在过去6个月IFIR呈下降趋势，从0.012%降至0.008%，整体表现改善。Top Model为T24A-20，贡献了约32%的IFIR，建议重点关注该机型的质量改进措施。"
+        },
+        {
+          "odm": "HUNTKEY",
+          "trend": [
+            { "month": "2025-07", "ifir": 0.00015, "box_claim": 75, "box_mm": 500000 },
+            { "month": "2025-08", "ifir": 0.00014, "box_claim": 70, "box_mm": 500000 },
+            { "month": "2025-09", "ifir": 0.00016, "box_claim": 80, "box_mm": 500000 },
+            { "month": "2025-10", "ifir": 0.00013, "box_claim": 65, "box_mm": 500000 },
+            { "month": "2025-11", "ifir": 0.00012, "box_claim": 60, "box_mm": 500000 },
+            { "month": "2025-12", "ifir": 0.00011, "box_claim": 55, "box_mm": 500000 }
+          ],
+          "top_models": [
+            {
+              "rank": 1,
+              "model": "P27H-30",
+              "ifir": 0.00028,
+              "box_claim": 14,
+              "box_mm": 50000,
+              "contribution": 0.25
+            },
+            {
+              "rank": 2,
+              "model": "L24E-40",
+              "ifir": 0.00024,
+              "box_claim": 12,
+              "box_mm": 50000,
+              "contribution": 0.22
+            },
+            {
+              "rank": 3,
+              "model": "T27H-30",
+              "ifir": 0.00020,
+              "box_claim": 10,
+              "box_mm": 50000,
+              "contribution": 0.18
+            }
+          ],
+          "ai_summary": "HUNTKEY在过去6个月IFIR整体呈稳定下降趋势，从0.015%降至0.011%。P27H-30是主要贡献机型，占比25%，9月存在一次小幅波动，但整体质量表现稳定。"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,227 @@
+// 全局样式
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+}
+
+// 变量定义
+:root {
+  --header-height: 56px;
+  --sidebar-width: 220px;
+  --sidebar-collapsed-width: 64px;
+  --primary-color: #409eff;
+  --bg-color: #f5f7fa;
+  --border-color: #e4e7ed;
+  --text-color: #303133;
+  --text-color-secondary: #606266;
+}
+
+// 滚动条样式
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #c0c4cc;
+  border-radius: 3px;
+  
+  &:hover {
+    background-color: #909399;
+  }
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+// 布局相关
+.page-container {
+  padding: 20px;
+  background-color: var(--bg-color);
+  min-height: calc(100vh - var(--header-height));
+}
+
+.page-header {
+  margin-bottom: 20px;
+  
+  h1 {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text-color);
+  }
+  
+  .description {
+    margin-top: 8px;
+    font-size: 14px;
+    color: var(--text-color-secondary);
+  }
+}
+
+// 卡片样式
+.analysis-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-color);
+    }
+  }
+  
+  .card-body {
+    padding: 20px;
+  }
+}
+
+// 筛选区样式
+.filter-panel {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+  }
+  
+  .filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    
+    .filter-label {
+      font-size: 14px;
+      color: var(--text-color-secondary);
+    }
+  }
+}
+
+// 结果区样式
+.result-area {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+// 空态样式
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-color-secondary);
+  
+  .el-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    color: #c0c4cc;
+  }
+  
+  .empty-text {
+    font-size: 14px;
+  }
+}
+
+// Carousel卡片样式
+.carousel-container {
+  position: relative;
+  overflow: hidden;
+  
+  .carousel-wrapper {
+    display: flex;
+    transition: transform 0.3s ease;
+    
+    .carousel-item {
+      flex-shrink: 0;
+      width: 100%;
+      padding: 0 10px;
+    }
+  }
+}
+
+// 选择条样式
+.selector-bar {
+  display: flex;
+  gap: 8px;
+  padding: 16px 0;
+  overflow-x: auto;
+  
+  .selector-item {
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: #f5f7fa;
+    color: var(--text-color-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    
+    &:hover {
+      background: #e6f0ff;
+      color: var(--primary-color);
+    }
+    
+    &.active {
+      background: var(--primary-color);
+      color: #fff;
+    }
+  }
+}
+
+// AI总结区样式
+.ai-summary {
+  background: linear-gradient(135deg, #f0f7ff 0%, #e8f4ff 100%);
+  border-radius: 8px;
+  padding: 16px;
+  border-left: 4px solid var(--primary-color);
+  
+  .summary-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--primary-color);
+    margin-bottom: 12px;
+  }
+  
+  .summary-content {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-color);
+  }
+}
+
+// 趋势图区域
+.trend-chart {
+  height: 300px;
+  width: 100%;
+}
+
+// 表格区域增强
+.el-table {
+  .cell {
+    font-size: 14px;
+  }
+}

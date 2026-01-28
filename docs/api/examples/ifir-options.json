@@ -1,0 +1,40 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/api/v1/ifir/options",
+    "params": {}
+  },
+  "response": {
+    "code": 1000,
+    "message": "success",
+    "data": {
+      "month_min": "2024-01",
+      "month_max": "2025-12",
+      "data_as_of": "2025-12",
+      "segments": [
+        "CONSUMER",
+        "COMMERCIAL",
+        "WORKSTATION"
+      ],
+      "odms": [
+        "FOXCONN",
+        "HUNTKEY",
+        "WISTRON",
+        "COMPAL",
+        "PEGATRON"
+      ],
+      "models": [
+        "T24A-20",
+        "Y27QF-30",
+        "G27C-10",
+        "P27H-30",
+        "L24E-40",
+        "T27H-30",
+        "P24H-20",
+        "G32QC-30",
+        "Y27F-30",
+        "L27E-40"
+      ]
+    }
+  }
+}

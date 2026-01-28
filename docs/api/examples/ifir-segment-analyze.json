@@ -1,0 +1,97 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/api/v1/ifir/segment-analysis/analyze",
+    "body": {
+      "time_range": {
+        "start_month": "2025-07",
+        "end_month": "2025-12"
+      },
+      "filters": {
+        "segments": ["CONSUMER"],
+        "odms": [],
+        "models": []
+      },
+      "view": {
+        "trend_months": 6,
+        "top_contributor_n": 3,
+        "top_issue_n": 3
+      }
+    }
+  },
+  "response": {
+    "code": 1000,
+    "message": "success",
+    "data": {
+      "meta": {
+        "data_as_of": "2025-12",
+        "time_range": {
+          "start_month": "2025-07",
+          "end_month": "2025-12"
+        },
+        "filters_applied": {
+          "segments": ["CONSUMER"],
+          "odms": [],
+          "models": []
+        }
+      },
+      "cards": [
+        {
+          "segment": "CONSUMER",
+          "trend": [
+            { "month": "2025-07", "ifir": 0.00011, "box_claim": 550, "box_mm": 5000000 },
+            { "month": "2025-08", "ifir": 0.00010, "box_claim": 500, "box_mm": 5000000 },
+            { "month": "2025-09", "ifir": 0.00012, "box_claim": 600, "box_mm": 5000000 },
+            { "month": "2025-10", "ifir": 0.00009, "box_claim": 450, "box_mm": 5000000 },
+            { "month": "2025-11", "ifir": 0.00008, "box_claim": 400, "box_mm": 5000000 },
+            { "month": "2025-12", "ifir": 0.00007, "box_claim": 350, "box_mm": 5000000 }
+          ],
+          "top_contributors": [
+            {
+              "rank": 1,
+              "model": "T24A-20",
+              "ifir": 0.00025,
+              "box_claim": 125,
+              "contribution": 0.28
+            },
+            {
+              "rank": 2,
+              "model": "G27C-10",
+              "ifir": 0.00020,
+              "box_claim": 100,
+              "contribution": 0.22
+            },
+            {
+              "rank": 3,
+              "model": "Y27QF-30",
+              "ifir": 0.00018,
+              "box_claim": 90,
+              "contribution": 0.20
+            }
+          ],
+          "top_issues": [
+            {
+              "rank": 1,
+              "issue": "显示器故障>>花屏",
+              "claim_count": 120,
+              "contribution": 0.27
+            },
+            {
+              "rank": 2,
+              "issue": "显示器故障>>无信号",
+              "claim_count": 85,
+              "contribution": 0.19
+            },
+            {
+              "rank": 3,
+              "issue": "显示器故障>>亮点/坏点",
+              "claim_count": 65,
+              "contribution": 0.14
+            }
+          ],
+          "ai_summary": "CONSUMER Segment在过去6个月IFIR持续下降，从0.011%降至0.007%，整体表现良好。主要贡献机型为T24A-20（28%），主要问题集中在花屏（27%）和无信号（19%），建议针对这两类问题进行专项改进。"
+        }
+      ]
+    }
+  }
+}

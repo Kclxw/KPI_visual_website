@@ -1,0 +1,83 @@
+
+## 1) IFIR detail 是什么
+**IFIR detail** 是用于支撑 IFIR 指标的**底层明细事件表**（逐条记录粒度）。每一行代表一次“在场/在用端发生并进入系统的索赔/故障事件（claim/incident）”，把该事件的**时间、区域/组织、产品信息、制造/服务站追溯、失效与问题描述、零部件与供应商、索赔单信息**串起来，用于：
+* 追溯 IFIR 汇总结果的来源（从看板/ROW 下钻到单条事件）
+* 做机型/工厂/站点/部件维度的异常定位与归因
+---
+## 2) 字段有哪些，分别代表什么（按主题分组）
+---
+## A. 时间维度
+* **Claim_Month**：索赔归属月份（用于月度汇总）｜例：`2022-01-01`
+* **Claim_Date**：索赔/事件日期｜例：`2022-01-09`
+* **Delivery_Month**：交付/出货月份（常用于出货口径汇总）｜例：`2022-01-01`
+* **Delivery_Day**：交付/出货日（1–31）｜例：`4`
+---
+## B. 区域与组织维度
+* **Geo_2012**：地理大区口径｜例：`PRC`
+* **Financial Region**：财务口径区域｜例：`PRC`
+* **PLANT**：工厂/生产基地｜例：`DAEWOO-WH`
+---
+## C. 产品归属维度
+* **Brand**：品牌/品牌组｜例：`PCG VISUAL`
+* **Segment**：业务段/大类｜例：`LENOVO`
+* **Segment2**：更细分业务段｜例：`CONSUMER`
+* **Style**：产品大类（如显示器/笔记本等）｜例：`MONITOR`
+* **Series**：系列｜例：`VIS G SERIES`
+* **Model**：型号（营销型号）｜例：`G27C-10`
+* **MTM**：机型编码（Machine Type Model）｜例：`66A3GCSBCB`
+* **Serial_Nbr**：序列号（单台设备标识）｜例：`UGW…Y07`（脱敏）
+---
+## D. 制造/服务追溯维度
+* **StationName**：服务站/维修站名称｜例：`广州宇创信息科技有限公司`
+* **Station_ID**：服务站/维修站 ID｜例：`617001`
+* **Data_Source**：数据来源系统｜例：`Service`
+* **LastSln**：最后处理/备注/解决信息（该字段在表中常见为长文本）｜例：`,分辨路上不上去，主机换另一个显示器正常，显卡驱动重装过无效，故障件：显示器.`
+---
+## E. 失效与问题描述维度
+* **Failure_Code**：标准失效代码｜例：`1`
+* **Fault_Category**：故障大类｜例：`LCD/LED显示器`
+* **Mach_Desc**：机器/机型描述（更详细规格描述）｜例：`G27c-10(G19270FG0)27inch Monitor-HDMI`
+* **Problem_Descr**：问题描述（系统/报修描述）｜例：`硬件问题>>显示器故障>>其他故障`
+* **Problem_Descr_by_Tech**：技术员/维修侧问题描述｜例：`硬件问题>>显示器故障>>其他故障`
+---
+## F. 零部件与供应链维度
+* **Down_Part_Code**：下阶/失效部件代码（用于部件归因）｜例：`66A3GCSBCB`
+* **Part_Nbr**：部件号（Part number）｜例：`66A3GCSBCB`
+* **Part_desc**：部件描述｜例：`G27c-10(G19270FG0)27inch Monitor-HDMI`
+* **Part_Supplier**：供应商｜例：`ZZZZ`
+* **Part_Barcode**：部件条码｜例：`UGW…Y07`（脱敏）
+* **Packing_Lot_No**：批次/包装批号｜例：`1S66A3GCSBCB`
+* **Commodity**：物料/系统归类｜例：`WHOLE UNIT SYSTEM`
+---
+## G. 索赔单与客户维度
+* **Claim_Nbr**：索赔单号/事件主编号｜例：`202…005`（脱敏）
+* **Claim_Item_Nbr**：索赔行号（子项编号）｜例：`CR220113617001011`
+* **Claim_Status**：索赔状态｜例：`已关单`
+* **Channel**：渠道｜例：`BTCP`
+* **Cust_Nbr**：客户编号｜例：`BTCP`（若为纯编号场景建议脱敏）
+---
+---
+## 3) 哪些字段可以作为唯一值用来建表（唯一键/主键建议）
+**结论：`Claim_Nbr` 可以作为明细表主键（PK）**
+* 在该文件中，`Claim_Nbr`（非空记录）是**唯一的**；
+* **推荐建表主键：**
+**常见的维表/关联键建议：**
+* 产品维：`MTM`（最稳），或 `Model + Series + Brand`（较易变）
+* 单机追溯：`Serial_Nbr`（但同一 Serial 可能对应多次 claim）
+* 部件维：`Part_Nbr`
+* 站点维：`Station_ID`
+* 工厂维：`PLANT`
+---
+## 4) 计算某个产品 IFIR 的“月度表现”，应该怎么计算
+在质量 KPI 场景里，月度 IFIR 通常按**出货月**做分母（更合理，因为分母是当月出货量）。
+### 按“出货月”计算（月度 IFIR 更常用）
+1. **选定产品口径**（建议优先用 `MTM` 或 `Model`）
+2. **分子：当月该产品的事件数/claim 数**
+   * 在 IFIR detail 中筛选：`Delivery_Month = 某月` 且 `MTM/Model = 某产品`
+   * 计数通常用 **`Claim_Nbr` 去重计数**（因为它是事件主编号）
+3. **分母：当月该产品出货量**（detail 表里一般没有，需要从出货表/ROW 表来）
+   * 你给的文件库里 `IFIR ROW.xlsx` 有 **`BOX CLAIM`** 和 **`BOX MM`**（看起来就是按出货月聚合后的 claim 数与出货量）
+4. **IFIR 月度值公式（常见 ppm 口径）**
+   * **IFIR(月) =（当月 claim 数 / 当月出货量）× 1,000,000**
+   * 其中：当月 claim 数 ≈ `BOX CLAIM`；当月出货量 ≈ `BOX MM`（以你们内部定义为准）
+> 实操建议：用 detail 表按 `Delivery_Month + MTM/Model` 聚合得到 claim 数，再与 ROW 表同口径的 `BOX CLAIM` 对比核对一致性；分母直接用 ROW 表的 `BOX MM`。

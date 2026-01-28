@@ -1,0 +1,228 @@
+---
+# 1) 四个文件的关系总览（按 KPI 计算闭环）
+四张表分成两条 KPI 链路，每条都是 **ROW 负责算 KPI，DETAIL 负责解释与追溯**：
+## A. IFIR 链路（按出货月 Delivery 口径）
+* **IFIR ROW**：KPI 计算与趋势主表（分子/分母齐全）
+* **IFIR DETAIL**：事件明细解释表（Issue、部件、工厂、站点、文本）
+**闭环：**
+1. 在 **IFIR ROW** 计算/展示 IFIR 表现与趋势
+2. 用户选定维度（ODM/Segment/Model）和月份范围
+3. 根据选定的 ODM 或 Segment 或 Model，确定要下钻的“工厂集合（Plant）”与“产品范围”
+4. 去 **IFIR DETAIL** 用 **Plant + 时间窗（Delivery 月）**过滤，取明细事件集
+5. 从明细事件集产出 **Top Issue / 追溯明细 / AI 总结**
+---
+## B. RA 链路（按索赔月 Claim 口径，机·月）
+* **RA ROW**：KPI 计算与趋势主表（RA CLAIM / RA MM）
+* **RA DETAIL**：维修事件明细解释表（Issue、部件、工厂、站点、文本）
+**闭环：**
+1. 在 **RA ROW** 计算/展示 RA 表现与趋势
+2. 用户选定维度（ODM/Segment/Model）和月份范围
+3. 选定 ODM 后，先在 ROW 内部确定其对应的 **PLANT_OLD →（映射到）PLANT（detail追溯口径）**
+4. 去 **RA DETAIL** 用 **PLANT + 时间窗（Claim 月）**过滤，取明细事件集
+5. 从明细事件集产出 **Top Issue / 追溯明细 / AI 总结**
+---
+# 2) 重点：IFIR DETAIL ↔ IFIR ROW 的“计算联系 + 字段映射”
+## 2.1 KPI 计算联系（ROW 怎么“来自” DETAIL）
+* **ROW 的分子（BOX CLAIM）**本质上对应：
+  **IFIR DETAIL 在同口径下的事件数聚合**（通常按 `Claim_Nbr` 去重计数）
+* **ROW 的分母（BOX MM）**：由 ROW/出货体系提供，DETAIL 不提供
+> 你要的是“通过 KPI 计算把两表联系起来”，这里的联系就是：
+> **ROW 的分子 = DETAIL 的事件聚合结果**（同口径过滤后）。
+## 2.2 字段映射（用于“同口径过滤 + 下钻”）
+**时间口径（IFIR 只看出货月）：**
+* `IFIR ROW.Delivery_month`  ↔  `IFIR DETAIL.Delivery_Month`
+**产品/业务标签（用于筛选、分组、对齐）：**
+* `IFIR ROW.Model` ↔ `IFIR DETAIL.Model`
+* `IFIR ROW.Segment` ↔ `IFIR DETAIL.Segment`
+* `IFIR ROW.SERIES` ↔ `IFIR DETAIL.Series`
+* `IFIR ROW.BRAND` ↔ `IFIR DETAIL.Brand`
+* `IFIR ROW.GEO` ↔ `IFIR DETAIL.Geo_2012`
+**工厂追溯（用于 ODM 下钻的关键）：**
+* `IFIR ROW.PLANT` ↔ `IFIR DETAIL.PLANT`
+**Issue/解释（ROW 不提供，必须来自 DETAIL）：**
+
+* `IFIR DETAIL.Fault_Category`
+* `IFIR DETAIL.Problem_Descr`
+* （可选追溯）`Part_Nbr / Part_Supplier / Station_ID / StationName / LastSln`
+
+## 2.3 ODM 下钻（按你确认的正确路径）
+
+* `IFIR ROW.Supplier_NEW` 是 ODM 分析字段
+* DETAIL 没有 ODM 字段，因此 ODM 下钻必须走：
+
+**先 ROW 算 KPI → 选 ODM → 在 ROW 内得到该 ODM 对应的 PLANT 集合 → 再去 DETAIL 用 PLANT + Delivery_Month 过滤取明细**
+
+---
+
+# 3) 重点：RA ROW ↔ RA DETAIL 的“计算联系 + 字段映射”
+
+## 3.1 KPI 计算联系
+
+* **ROW 的分子（RA CLAIM）**对应：
+  **RA DETAIL 在同口径下的维修事件聚合**（通常按 `Claim_Nbr` 去重计数）
+* **ROW 的分母（RA MM）**：保修内机器数（机·月基数），DETAIL 不提供
+
+## 3.2 字段映射（用于同口径过滤 + 下钻）
+
+**时间口径（RA 只看索赔月）：**
+
+* `RA ROW.Claim_month` ↔ `RA DETAIL.Claim_Month`
+
+**产品/业务标签：**
+
+* `RA ROW.Model` ↔ `RA DETAIL.Model`
+* `RA ROW.Segment` ↔ `RA DETAIL.Segment`
+* `RA ROW.SERIES` ↔ `RA DETAIL.Series`
+* `RA ROW.BRAND` ↔ `RA DETAIL.Brand`
+* `RA ROW.GEO` ↔ `RA DETAIL.Geo_2012`
+
+**工厂字段（按你已澄清的语义）：**
+
+* `RA ROW.PLANT_OLD`：ROW 内部归属/历史工厂口径（用于 ODM→工厂映射）
+* `RA DETAIL.PLANT`：明细追溯口径（用于真正下钻解释）
+
+因此 RA 的 ODM 下钻必须走：
+**ROW 选定 ODM → 找到对应 PLANT_OLD → 映射/确认到 DETAIL 可用的 PLANT → 再去 DETAIL 按 PLANT + Claim_Month 过滤取明细**。
+
+**Issue/解释（必须来自 DETAIL）：**
+
+* `RA DETAIL.Fault_Category`
+* `RA DETAIL.Problem_Descr`
+* （追溯）`PLANT / Station_ID / StationName / Part_Nbr / Part_Supplier / LastSln`
+
+---
+
+# 4) 回到你的核心任务：三层分析该用哪些字段（字段白名单）
+
+下面只给“必须字段”，其它默认不进核心分析。
+
+---
+
+## 4.1 IFIR 分析
+
+### A) ODM 层（“月 → ODM → Model”趋势 + Top Issue + Top Model + 明细追溯）
+
+**ROW 用于 KPI 与趋势：**
+
+* `Delivery_month`
+* `Supplier_NEW`（ODM）
+* `Model`
+* `BOX CLAIM`
+* `BOX MM`
+
+**ROW 用于 ODM→工厂映射：**
+
+* `Supplier_NEW`
+* `PLANT`
+
+**DETAIL 用于解释：**
+
+* 过滤条件：`Delivery_Month`（时间窗） + `PLANT`（由 ROW 映射得到）
+* 取字段：`Fault_Category / Problem_Descr / Claim_Nbr`
+* 追溯可选：`Station_ID/StationName / Part_Nbr/Part_Supplier / LastSln`
+
+---
+
+### B) Segment 层（按 Segment 的关联关系做整体表现、趋势、Top 贡献者/主要问题）
+
+**ROW 用于 KPI 与趋势：**
+
+* `Delivery_month`
+* `Segment`
+* `BOX CLAIM`
+* `BOX MM`
+
+**ROW 用于 Top 贡献者（机型）：**
+
+* `Model`（在 Segment 内按 BOX CLAIM 贡献排序）
+
+**DETAIL 用于主要问题（Top Issue）：**
+
+* 过滤：`Delivery_Month` + `Segment`（必要时再叠加 Top Model）
+* 取字段：`Fault_Category / Problem_Descr / Claim_Nbr`
+
+---
+
+### C) Model 层（选定 Model：月趋势 + Top Issue，不做 Top Model）
+
+**ROW：**
+
+* `Delivery_month`
+* `Model`
+* `BOX CLAIM`
+* `BOX MM`
+
+**DETAIL：**
+
+* 过滤：`Delivery_Month` + `Model`
+* 取字段：`Fault_Category / Problem_Descr / Claim_Nbr`
+
+---
+
+## 4.2 RA 分析（与 IFIR 平行，但时间与分母不同）
+
+### A) ODM 层
+
+**ROW 用于 KPI 与趋势：**
+
+* `Claim_month`
+* `Supplier_NEW`（ODM）
+* `Model`
+* `RA CLAIM`
+* `RA MM`
+
+**ROW 用于 ODM→工厂映射：**
+
+* `Supplier_NEW`
+* `PLANT_OLD`（你定义为 ROW 中的工厂口径）
+
+**DETAIL 用于解释：**
+
+* 过滤：`Claim_Month`（时间窗） + `PLANT`（detail追溯口径，需要先从 PLANT_OLD 映射/确认到 PLANT）
+* 取字段：`Fault_Category / Problem_Descr / Claim_Nbr`
+* 追溯可选：`Station / Part / LastSln`
+
+---
+
+### B) Segment 层
+
+**ROW：**
+
+* `Claim_month`
+* `Segment`
+* `RA CLAIM`
+* `RA MM`
+* `Model`（用于 Top 贡献者）
+
+**DETAIL：**
+
+* 过滤：`Claim_Month` + `Segment`（必要时叠加 Top Model）
+* 取字段：`Fault_Category / Problem_Descr / Claim_Nbr`
+
+---
+
+### C) Model 层
+
+**ROW：**
+
+* `Claim_month`
+* `Model`
+* `RA CLAIM`
+* `RA MM`
+
+**DETAIL：**
+
+* 过滤：`Claim_Month` + `Model`
+* 取字段：`Fault_Category / Problem_Descr / Claim_Nbr`
+
+---
+
+# 5) 你明确要求的两点约束，我已纳入
+
+1. **ODM 下钻必须先做 ROW→工厂映射，再用工厂去 DETAIL 取明细**（已按此写法输出）
+2. **Mach_type 暂时不用**（本输出中未把 Mach_type 放入任何核心分析白名单）
+
+---
+
+如果你下一步要我把这套关系进一步“落地成系统规则”，我可以直接输出两份东西（仍不含唯一值）：
+

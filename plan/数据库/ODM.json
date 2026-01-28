@@ -1,0 +1,214 @@
+{
+    "IFIR": {
+      "BOE": [
+        "BOE",
+        "BOEKT-SZH",
+        "BOEVT-HF",
+        "DAEWOO-WH",
+        "None",
+        "TECHCOM-QUANTA",
+        "TPV-GORZOW",
+        "WISTRON-ZS"
+      ],
+      "BOE/HUNTKEY": [
+        "BOE",
+        "HUNKEY-HF",
+        "LINXEE-BJ",
+        "None",
+        "TPV"
+      ],
+      "BOE/TPV": [
+        "BOE",
+        "TPV"
+      ],
+      "DAEWOO": [
+        "DAEWOO-WH",
+        "None",
+        "SAMSUNG-TJ"
+      ],
+      "FOXCONN": [
+        "FOXCONN-CQ",
+        "HUNKEY-HF",
+        "HYP",
+        "None",
+        "TPV",
+        "USI-TW"
+      ],
+      "FOXCONN/HUNTKEY": [
+        "FOXCONN-CQ",
+        "HUNKEY-HF",
+        "None",
+        "TPV"
+      ],
+      "FOXCONN/HUNTKEY/TPV": [
+        "FOXCONN-CQ",
+        "HUNKEY-HF",
+        "TPV"
+      ],
+      "FOXCONN/TPV": [
+        "FOXCONN-CQ",
+        "None",
+        "TPV",
+        "TPV-BJ"
+      ],
+      "HUNKEY": [
+        "HUNKEY-HF",
+        "None"
+      ],
+      "HUNTKEY": [
+        "HUNKEY-HF",
+        "None"
+      ],
+      "HUNTKEY/TPV/FOXCONN": [
+        "HUNKEY-HF",
+        "TPV"
+      ],
+      "HYP": [
+        "HYP",
+        "None"
+      ],
+      "HYP/TPV": [
+        "HYP",
+        "TPV"
+      ],
+      "INX": [
+        "None",
+        "SAMSUNG-TJ"
+      ],
+      "LENOVO": [
+        "None"
+      ],
+      "LINXEE": [
+        "LINXEE-BJ"
+      ],
+      "SAMSUNG": [
+        "None",
+        "SAMSUNG-TJ"
+      ],
+      "SAMSUNG/INX": [
+        "SAMSUNG-TJ"
+      ],
+      "TPV": [
+        "None",
+        "TPV",
+        "TPV-BJ",
+        "TPV-GORZOW"
+      ],
+      "TPV/FOXCONN": [
+        "FOXCONN-CQ",
+        "None",
+        "TPV"
+      ],
+      "TPV/HUNTKEY": [
+        "HUNKEY-HF",
+        "TPV"
+      ],
+      "USI": [
+        "USI-TW"
+      ],
+      "None": [
+        "HYP",
+        "None",
+        "TPV"
+      ]
+    },
+    "RA": {
+      "3NOD": [
+        "3NOD-SZ"
+      ],
+      "BOE": [
+        "BOE",
+        "BOEKT-SZH",
+        "BOEVT-HF",
+        "FOXCONN-CQ",
+        "HUNKEY-HF",
+        "HYP",
+        "LINXEE-BJ",
+        "None",
+        "QISDA-SZ",
+        "SAMSUNG-TJ",
+        "TECHCOM-QUANTA",
+        "TPV",
+        "TPV-BJ",
+        "TPV-GORZOW",
+        "USI-TW",
+        "WISTRON-ZS"
+      ],
+      "BUD": [
+        "BUD"
+      ],
+      "CMI": [
+        "CMI"
+      ],
+      "DAEWOO": [
+        "DAEWOO-WH"
+      ],
+      "FOXCONN": [
+        "FOXCONN-CQ",
+        "HUNKEY-HF",
+        "HYP",
+        "None",
+        "TPV",
+        "TPV-BJ",
+        "USI-TW"
+      ],
+      "HACHENG": [
+        "HACHENG"
+      ],
+      "HUNKEY": [
+        "HUNKEY-HF",
+        "None"
+      ],
+      "HUNTKEY": [
+        "HUNKEY-HF",
+        "None"
+      ],
+      "HYP": [
+        "HYP",
+        "None"
+      ],
+      "INX": [
+        "None",
+        "SAMSUNG-TJ"
+      ],
+      "LENOVO": [
+        "None"
+      ],
+      "LINXEE": [
+        "LINXEE-BJ"
+      ],
+      "QISDA": [
+        "DAEWOO-WH",
+        "QISDA-SZ",
+        "None",
+        "WISTRON-ZS"
+      ],
+      "SAMSUNG": [
+        "None",
+        "SAMSUNG-TJ"
+      ],
+      "TPV": [
+        "None",
+        "TPV",
+        "TPV-BJ",
+        "TPV-GORZOW"
+      ],
+      "USI": [
+        "USI-TW"
+      ],
+      "WISTRON": [
+        "WISTRON-ZS"
+      ],
+      "YON": [
+        "YON"
+      ],
+      "ZAL": [
+        "ZAL"
+      ],
+      "None": [
+        "None",
+        "TPV"
+      ]
+    }
+  }
+  

@@ -1,0 +1,296 @@
+# RA DETAIL 表内容详述（标准版）
+---
+## 1️⃣ RA DETAIL 是什么（What）
+
+**RA DETAIL** 是用于支撑 **RA（维修率 / 机·月）** 指标的**底层明细事件表**。
+
+* **表粒度**：
+  每一行代表 **一次实际发生的维修/返修/服务事件（RA Claim）**
+* **时间主轴**：
+  **Claim_month（索赔/维修发生月）**
+* **核心作用**：
+
+  * 作为 **RA 分子（RA CLAIM）** 的唯一来源
+  * 支撑 RA ROW 的聚合计算
+  * 用于下钻分析：
+
+    * 哪些 Model
+    * 哪些 ODM / Plant
+    * 哪些问题 / 部件
+    * 在哪些月份集中发生维修
+
+👉 **一句话定义**
+RA DETAIL 是以“维修事件”为粒度、以索赔发生月为时间口径的维修明细表，是 RA 指标分子的事实来源。
+---
+## 2️⃣ 字段结构与业务含义（Schema & Semantics）
+> RA DETAIL 字段可以清晰分为 **7 大类**，每一类都直接服务于 RA 的“发生率”分析逻辑。
+---
+## A. 时间维度（When｜RA 的核心）
+
+> **RA 只认 Claim 时间，不认出货时间**
+
+* **Claim_month**
+  索赔/维修发生月份（RA 的唯一时间主轴）
+
+  * 用于：
+
+    * 月度 RA 计算
+    * 趋势分析
+  * 例：`2025-07-01`
+
+* **Claim_date**
+  具体索赔/维修发生日期
+
+  * 用于：8
+
+    * 月内节奏分析
+    * 明细核查
+  * 例：`2025-07-18`
+
+---
+
+## B. 区域与组织维度（Where）
+
+* **Geo_2012**
+  地理大区
+
+  * 例：`PRC`
+
+* **Financial Region**
+  财务区域口径
+
+  * 例：`PRC`
+
+---
+
+## C. 产品归属维度（What Product）
+
+> **这是 RA DETAIL 与 RA ROW 对齐的关键**
+
+* **Brand**
+  品牌
+
+  * 例：`LENOVO`
+
+* **Segment / Segment2**
+  业务段 / 子业务段
+
+  * 例：`CONSUMER`
+
+* **Style**
+  产品大类
+
+  * 例：`MONITOR`
+
+* **Series**
+  产品系列
+
+  * 例：`VIS T SERIES`
+
+* **Model**
+  产品营销型号（RA DETAIL 与 RA ROW 的**核心 Join Key 之一**）
+
+  * 例：`T24A-20`
+
+* **MTM**
+  Machine Type Model（平台/机型编码）
+
+  * 例：`63EF`
+
+* **Serial_Nbr**
+  单机序列号（单台设备标识）
+
+  * 同一 Serial 可能在不同月份出现多次 RA
+  * **不能作为唯一键**
+
+---
+
+## D. 制造 / 服务追溯维度（Traceability）
+
+> **用于从“发生率”下钻到“原因”**
+
+* **PLANT**
+  工厂/生产基地
+
+  * 与 RA ROW、IFIR DETAIL 中的 PLANT **字段一一对应**
+  * 是 Detail 层面最重要的追溯字段
+
+* **StationName**
+  服务站/维修站名称
+
+  * 例：`广州宇创信息科技有限公司`
+
+* **Station_ID**
+  服务站 ID
+
+  * 例：`617001`
+
+* **Data_Source**
+  数据来源系统
+
+  * 例：`Service`
+
+* **LastSln**
+  最终处理说明/维修备注（长文本）
+
+  * 用于：
+
+    * 真实问题判断
+    * 文本挖掘 / Case 复盘
+
+---
+
+## E. 故障与问题描述维度（Failure & Symptom）
+
+* **Failure_Code**
+  标准失效代码
+
+* **Fault_Category**
+  故障大类
+
+  * 例：`LCD/LED显示器`
+
+* **Mach_Desc**
+  机型/规格描述（详细）
+
+* **Problem_Descr**
+  客户/系统侧问题描述
+
+* **Problem_Descr_by_Tech**
+  技术员侧问题确认描述
+
+> 这组字段是：
+>
+> * RA DETAIL 中**最适合做问题聚类、Top Issue 分析**的字段组
+
+---
+
+## F. 零部件与供应链维度（Part & Supplier）
+
+* **Down_Part_Code**
+  下阶/失效部件代码
+
+* **Part_Nbr**
+  部件号
+
+* **Part_desc**
+  部件描述
+
+* **Part_Supplier**
+  部件供应商
+
+* **Packing_Lot_No**
+  批次号
+
+* **Commodity**
+  物料/系统归类
+
+  * 例：`WHOLE UNIT SYSTEM`
+
+---
+
+## G. 索赔单维度（Claim Identity）
+
+> **RA DETAIL 的“事件身份”**
+
+* **Claim_Nbr**
+  索赔单号（主单号）
+
+  * 同一 Claim_Nbr 在 RA DETAIL 中 **唯一**
+
+* **Claim_Item_Nbr**
+  索赔子项编号
+
+* **Claim_Status**
+  索赔状态
+
+  * 例：`已关单`
+
+* **Channel**
+  渠道
+
+  * 例：`Service`
+
+* **Cust_Nbr**
+  客户编号（脱敏使用）
+
+---
+
+## 3️⃣ 唯一性与建模结论（非常关键）
+
+### 3.1 RA DETAIL 的主键（PK）
+
+✅ **推荐主键**：
+
+```
+Claim_Nbr
+```
+
+* 在 RA DETAIL 文件中：
+
+  * Claim_Nbr **一行唯一**
+  * 可作为事实表主键
+
+---
+
+### 3.2 与 RA ROW 的关系
+
+* **RA DETAIL → RA ROW**：
+
+  * 多对一（Many → One）
+* 聚合逻辑为：
+
+```
+RA DETAIL
+group by Claim_month + Model
+→ 计数 Claim_Nbr
+→ RA CLAIM
+```
+
+## 4️⃣ RA 指标在 DETAIL 表中的计算支持方式
+
+### 4.1 分子（RA CLAIM）如何从 DETAIL 得到
+
+* 按 **Claim_month** 聚合
+* **对 Claim_Nbr 去重计数**
+* 得到：
+
+  * 月度 RA CLAIM
+
+---
+
+### 4.2 分母（RA MM）不来自 DETAIL
+
+* RA DETAIL **不包含**：
+
+  * 保修期内机器总数
+* RA MM 必须来自：
+
+  * RA ROW
+  * 或独立的保有量/保修资产表
+
+---
+
+## 5️⃣ 实际使用建议（Best Practice）
+
+### 正确使用方式
+
+1. **先在 RA ROW 看趋势**
+
+   * 哪些月 RA 异常
+   * 哪些 Model 风险高
+2. **再用 RA DETAIL 下钻**
+
+   * 看：
+
+     * PLANT
+     * ODM（Supplier_NEW，来自 ROW）
+     * Problem / Part / Station
+
+---
+
+### 明确不该做的事
+
+* ❌ 用 RA DETAIL 直接算 RA（缺分母）
+* ❌ 用 Serial_Nbr 当主键
+* ❌ 把 Claim_month 和 Delivery_month 混用

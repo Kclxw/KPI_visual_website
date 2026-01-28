@@ -1,0 +1,149 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/api/v1/ifir/model-analysis/analyze",
+    "body": {
+      "time_range": {
+        "start_month": "2025-07",
+        "end_month": "2025-12"
+      },
+      "filters": {
+        "models": ["T24A-20", "Y27QF-30"],
+        "segments": [],
+        "odms": []
+      },
+      "view": {
+        "trend_months": 6,
+        "top_issue_n": 5
+      }
+    }
+  },
+  "response": {
+    "code": 1000,
+    "message": "success",
+    "data": {
+      "meta": {
+        "data_as_of": "2025-12",
+        "time_range": {
+          "start_month": "2025-07",
+          "end_month": "2025-12"
+        },
+        "filters_applied": {
+          "models": ["T24A-20", "Y27QF-30"],
+          "segments": [],
+          "odms": []
+        }
+      },
+      "cards": [
+        {
+          "model": "T24A-20",
+          "trend": [
+            { "month": "2025-07", "ifir": 0.00030, "box_claim": 30, "box_mm": 100000 },
+            { "month": "2025-08", "ifir": 0.00028, "box_claim": 28, "box_mm": 100000 },
+            { "month": "2025-09", "ifir": 0.00035, "box_claim": 35, "box_mm": 100000 },
+            { "month": "2025-10", "ifir": 0.00025, "box_claim": 25, "box_mm": 100000 },
+            { "month": "2025-11", "ifir": 0.00022, "box_claim": 22, "box_mm": 100000 },
+            { "month": "2025-12", "ifir": 0.00020, "box_claim": 20, "box_mm": 100000 }
+          ],
+          "top_issues": [
+            {
+              "rank": 1,
+              "issue": "显示器故障>>花屏",
+              "claim_count": 45,
+              "contribution": 0.28,
+              "first_seen": "2025-07",
+              "last_seen": "2025-12"
+            },
+            {
+              "rank": 2,
+              "issue": "显示器故障>>无信号",
+              "claim_count": 32,
+              "contribution": 0.20,
+              "first_seen": "2025-07",
+              "last_seen": "2025-12"
+            },
+            {
+              "rank": 3,
+              "issue": "显示器故障>>闪烁",
+              "claim_count": 25,
+              "contribution": 0.16,
+              "first_seen": "2025-08",
+              "last_seen": "2025-11"
+            },
+            {
+              "rank": 4,
+              "issue": "显示器故障>>亮点/坏点",
+              "claim_count": 20,
+              "contribution": 0.13,
+              "first_seen": "2025-07",
+              "last_seen": "2025-12"
+            },
+            {
+              "rank": 5,
+              "issue": "电源问题>>无法开机",
+              "claim_count": 15,
+              "contribution": 0.09,
+              "first_seen": "2025-09",
+              "last_seen": "2025-12"
+            }
+          ],
+          "ai_summary": "T24A-20在过去6个月IFIR整体呈下降趋势，从0.030%降至0.020%，9月有一次波动（0.035%）。Top Issue为花屏问题，贡献28%，该问题持续出现，建议重点排查屏幕供应商或组装工艺。"
+        },
+        {
+          "model": "Y27QF-30",
+          "trend": [
+            { "month": "2025-07", "ifir": 0.00025, "box_claim": 25, "box_mm": 100000 },
+            { "month": "2025-08", "ifir": 0.00023, "box_claim": 23, "box_mm": 100000 },
+            { "month": "2025-09", "ifir": 0.00028, "box_claim": 28, "box_mm": 100000 },
+            { "month": "2025-10", "ifir": 0.00020, "box_claim": 20, "box_mm": 100000 },
+            { "month": "2025-11", "ifir": 0.00018, "box_claim": 18, "box_mm": 100000 },
+            { "month": "2025-12", "ifir": 0.00015, "box_claim": 15, "box_mm": 100000 }
+          ],
+          "top_issues": [
+            {
+              "rank": 1,
+              "issue": "显示器故障>>色彩异常",
+              "claim_count": 35,
+              "contribution": 0.27,
+              "first_seen": "2025-07",
+              "last_seen": "2025-12"
+            },
+            {
+              "rank": 2,
+              "issue": "显示器故障>>刷新率异常",
+              "claim_count": 28,
+              "contribution": 0.22,
+              "first_seen": "2025-07",
+              "last_seen": "2025-10"
+            },
+            {
+              "rank": 3,
+              "issue": "显示器故障>>无信号",
+              "claim_count": 22,
+              "contribution": 0.17,
+              "first_seen": "2025-08",
+              "last_seen": "2025-12"
+            },
+            {
+              "rank": 4,
+              "issue": "接口问题>>HDMI故障",
+              "claim_count": 18,
+              "contribution": 0.14,
+              "first_seen": "2025-07",
+              "last_seen": "2025-11"
+            },
+            {
+              "rank": 5,
+              "issue": "显示器故障>>亮度不均",
+              "claim_count": 12,
+              "contribution": 0.09,
+              "first_seen": "2025-09",
+              "last_seen": "2025-12"
+            }
+          ],
+          "ai_summary": "Y27QF-30在过去6个月IFIR持续改善，从0.025%降至0.015%，改善幅度达40%。主要问题为色彩异常（27%）和刷新率异常（22%），其中刷新率问题在10月后未再出现，可能已通过固件更新解决。"
+        }
+      ]
+    }
+  }
+}

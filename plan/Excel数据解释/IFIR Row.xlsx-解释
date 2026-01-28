@@ -1,0 +1,149 @@
+好，我**完全按你最新确认的口径**，**重新、干净地**输出一版 **IFIR ROW.xlsx 的最终说明**。
+这版说明可以直接作为你后续所有 ROW 类表的**标准写法**。
+---
+# IFIR ROW 表内容详述（最终修订版）
+---
+## 1️⃣ IFIR ROW 是什么（What）
+**IFIR ROW** 是用于支撑 IFIR 指标的**汇总结果表（ROW / 聚合表）**。
+* 表粒度为：**出货月 × 产品（Model）**
+* 每一行代表：
+  > 某一个 **Model** 在某一个 **Delivery_month（出货月）** 下，对应的 **IFIR 计算所需分子与分母**
+* 该表是：
+  * IFIR 看板与 KPI 报告的**直接数据源**
+  * IFIR detail 的**上游汇总结果**
+  * 管理层、PQM、供应链分析使用的**主事实表**
+👉 **一句话定义**
+IFIR ROW 是从 IFIR detail 按“出货月 + Model”口径聚合得到的质量 KPI 汇总表，用于直接计算和展示 IFIR。
+---
+## 2️⃣ 字段结构与业务含义（Schema & Semantics）
+> ROW 表字段可分为 **5 类**：时间、产品、分析维度、追溯维度、指标字段
+---
+### A. 时间维度（When）
+* **Delivery_month**
+  出货/交付归属月份（ROW 表的**唯一时间主轴**）
+  * 例：`2025-12-01`
+* **YEAR**
+  出货年份（从 Delivery_month 派生，便于筛选）                          
+  * 例：`2025`
+* **MONTH**
+  出货月份（从 Delivery_month 派生，便于筛选）
+  * 例：`12`
+> 说明：
+> ROW 表**只以出货月为准**，不承担事件发生时间口径。
+---
+### B. 产品归属维度（核心维度｜What Product）
+> **这是 ROW 表中“唯一键的一部分”**
+* **Model**
+  产品营销型号（ROW 表的**核心产品口径**）
+  * 例：`T24A-20`、`Y27QF-30`
+* **Mach_type**
+  Machine Type / 平台编码（辅助产品识别，用于平台级分析）
+  * 例：`63EF`、`67A7`
+* **SERIES**
+  产品系列
+  * 例：`VIS T SERIES`
+* **Product_line**
+  产品线
+  * 例：`VIS`
+* **Segment**
+  业务段
+  * 例：`CONSUMER` / `COMMERCIAL`
+* **BRAND**
+  品牌
+  * 例：`LENOVO`
+---
+### C. 分析用维度（Analysis Axis）
+> **用于“对比 / 排名 / 异常识别”，不是唯一键**
+* **Supplier_NEW**
+  **ODM 厂商字段（核心分析维度）**
+  * 一个 ODM 可以对应多个 Plant
+  * ROW 表中用于：
+    * ODM IFIR 对比
+    * Top ODM 风险识别
+  * 例：`FOXCONN`、`HUNTKEY`
+* **GEO**
+  地理大区
+  * 例：`PRC`
+---
+### D. 追溯用维度（Traceability Axis）
+> **用于和 Detail 表对齐，不作为分析主轴**
+* **PLANT**
+  工厂/生产基地
+  * 与 IFIR detail 中的 `PLANT` **字段一一对应**
+  * 但：
+    * `PLANT` ↔ `Supplier_NEW (ODM)` 是 **一对多关系**
+    * 不可反推
+  * 该字段主要用于：
+    * 从 ROW 下钻到 detail
+    * 工厂级问题解释
+---
+### E. KPI 指标字段（Numerator / Denominator）
+> **IFIR 能在 ROW 表中直接计算，原因就在这里**
+* **BOX CLAIM**（分子）
+  该 Model 在该 Delivery_month 下的索赔/事件数
+  * 已按内部规则聚合
+  * 等价于 detail 表中 claim 的去重计数结果
+* **BOX MM**（分母）
+  该 Model 在该 Delivery_month 下的出货量/基数
+  * IFIR 的标准分母
+  * 通常不从 detail 表计算
+---
+## 3️⃣ 唯一性与建模结论（非常关键）
+### 3.1 ROW 表唯一键（你确认的最终口径）
+✅ **ROW 表唯一键 =**
+```
+Delivery_month + Model
+```
+* 在该文件中：
+  * 同一 Delivery_month 下，每个 Model **只出现一次**
+  * 其它字段（ODM、PLANT、Series 等）均是该唯一键下的**属性或分析维度**
+👉 这意味着：
+* ROW 表是**严格的“月 × 产品”事实表**
+* 不允许：
+  * 同一月同一 Model 出现多行
+  * 以 PLANT / Supplier_NEW 作为主键
+---
+### 3.2 ROW 与 Detail 的关系（逻辑而非键）
+* ROW → Detail：
+  * **一行 ROW 对应 Detail 中多行记录**
+* 下钻逻辑为：
+```
+Delivery_month + Model
+    ↓
+Detail 中：
+Delivery_Month + Model + PLANT + Station + Part + Problem
+```
+---
+## 4️⃣ IFIR 的计算方式（ROW 表视角）
+### 4.1 月度 IFIR（标准用法）
+对于任意一行 ROW：
+```
+IFIR = (BOX CLAIM / BOX MM) × 1,000,000
+```
+### 4.2 分工原则（必须写清）
+* **ROW 表负责：**
+  * 分子（BOX CLAIM）
+  * 分母（BOX MM）
+  * IFIR 结果本身
+* **Detail 表负责：**
+  * 解释 BOX CLAIM 是“哪些问题、哪些工厂、哪些部件造成的”
+---
+## 5️⃣ 实际使用建议
+### 正确使用方式
+1. **先用 ROW 表**
+   * 看月度 IFIR
+   * 找异常 Model
+   * 对比 ODM（Supplier_NEW）
+2. **再下钻 Detail 表**
+   * 用 `Delivery_month + Model`
+   * 展开到：
+     * PLANT
+     * Station
+     * Part
+     * Problem / Failure
+---
+### 明确禁止的误用
+* ❌ 把 ROW 当 detail 用
+* ❌ 用 PLANT 或 Supplier_NEW 作为 ROW 主键
+* ❌ 试图从 ROW 反推“某个 ODM 对应哪个唯一工厂”
+

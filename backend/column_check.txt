@@ -1,0 +1,76 @@
+==================================================
+IFIR DETAIL 列名:
+==================================================
+ 0: Claim_Month
+ 1: Geo_2012
+ 2: Financial Region
+ 3: Brand
+ 4: Segment
+ 5: Segment2
+ 6: Style
+ 7: Series
+ 8: Serial_Nbr
+ 9: Delivery_Month
+10: Model
+11: PLANT
+12: Commodity
+13: LastSln
+14: StationName
+15: Station_ID
+16: Data_Source
+17: Failure_Code
+18: Mach_Desc
+19: Problem_Descr_by_Tech
+20: MTM
+21: Problem_Descr
+22: Fault_Category
+23: Down_Part_Code
+24: Part_Barcode
+25: Part_Supplier
+26: Part_desc
+27: Part_Nbr
+28: Channel
+29: Claim_Item_Nbr
+30: Claim_Nbr
+31: Claim_Status
+32: Delivery_Day
+33: Packing_Lot_No
+34: Cust_Nbr
+35: Claim_Date
+
+==================================================
+RA DETAIL 列名:
+==================================================
+ 0: Claim_Month
+ 1: Geo_2012
+ 2: Series
+ 3: Serial_Nbr
+ 4: Segment
+ 5: Segment2
+ 6: Brand
+ 7: Financial Region
+ 8: Model
+ 9: PLANT
+10: Problem_Descr
+11: Problem_Descr_by_Tech
+12: LastSln
+13: Mach_Desc
+14: Commodity
+15: Part_Nbr
+16: Part_desc
+17: Down_Part_Code
+18: Part_Supplier
+19: Fault_Category
+20: Data_Source
+21: Claim_Item_Nbr
+22: Claim_Nbr
+23: Claim_Status
+24: Cust_Nbr
+25: Part_Barcode
+26: Part_Build_Date
+27: Station_ID
+28: StationName
+
+==================================================
+IFIR DETAIL 行数: 13084
+RA DETAIL 行数: 65811
