@@ -1,4 +1,4 @@
-﻿/**
+﻿ /**
  * API 基础配置
  */
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
@@ -39,17 +39,6 @@ apiClient.interceptors.response.use(
   async (error) => {
     const status = error.response?.status
     const message = error.response?.data?.message || error.message || '网络错误'
-    if (status === 422) {
-      const detail = error.response?.data?.detail
-      let detailMessage = '参数校验失败'
-      if (Array.isArray(detail) && detail.length) {
-        detailMessage = detail.map((item) => item.msg).join('；')
-      } else if (typeof detail === 'string') {
-        detailMessage = detail
-      }
-      ElMessage.error(detailMessage)
-      return Promise.reject(error)
-    }
     if (status === 401) {
       const pinia = getActivePinia()
       if (pinia) {
