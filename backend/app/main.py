@@ -5,7 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.api import ifir, ra, upload
+from app.api import ifir, ra, upload, auth, admin
+from app.core.database import SessionLocal
+from app.services.auth_service import AuthService
 
 settings = get_settings()
 
@@ -31,6 +33,26 @@ app.add_middleware(
 app.include_router(ifir.router, prefix="/api")
 app.include_router(ra.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
+
+
+@app.on_event("startup")
+def ensure_default_admin():
+    """Create default admin if configured."""
+    if not settings.DEFAULT_ADMIN_USERNAME or not settings.DEFAULT_ADMIN_PASSWORD:
+        return
+    db = SessionLocal()
+    try:
+        service = AuthService(db)
+        service.ensure_default_admin(
+            username=settings.DEFAULT_ADMIN_USERNAME,
+            password=settings.DEFAULT_ADMIN_PASSWORD,
+            display_name=settings.DEFAULT_ADMIN_DISPLAY_NAME,
+            email=settings.DEFAULT_ADMIN_EMAIL or None,
+        )
+    finally:
+        db.close()
 
 
 @app.get("/")

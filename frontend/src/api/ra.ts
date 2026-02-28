@@ -3,6 +3,8 @@
  */
 import apiClient from './index'
 
+export type TopSort = 'claim' | 'ra'
+
 // 筛选选项
 export interface RaOptions {
   time_range: {
@@ -18,8 +20,8 @@ export interface RaOptions {
 export interface TrendPoint {
   month: string
   ra: number
-  ra_claim: number
-  ra_mm: number
+  ra_claim?: number
+  ra_mm?: number
 }
 
 // Top Model
@@ -43,9 +45,9 @@ export interface TopOdm {
 // Top Issue
 export interface TopIssue {
   rank: number
-  fault_category: string
+  issue: string
   count: number
-  percentage: number
+  share?: number
 }
 
 // 月度明细
@@ -198,6 +200,7 @@ export async function analyzeRaOdm(params: {
   odms: string[]
   segments?: string[]
   models?: string[]
+  top_model_sort?: TopSort
 }): Promise<OdmAnalyzeResponse> {
   const request = {
     time_range: {
@@ -208,6 +211,9 @@ export async function analyzeRaOdm(params: {
       odms: params.odms,
       segments: params.segments,
       models: params.models
+    },
+    view: {
+      top_model_sort: params.top_model_sort
     }
   }
   const response = await apiClient.post('/ra/odm-analysis/analyze', request)
@@ -223,6 +229,8 @@ export async function analyzeRaSegment(params: {
   segments: string[]
   odms?: string[]
   models?: string[]
+  top_odm_sort?: TopSort
+  top_model_sort?: TopSort
 }): Promise<SegmentAnalyzeResponse> {
   const request = {
     time_range: {
@@ -233,6 +241,10 @@ export async function analyzeRaSegment(params: {
       segments: params.segments,
       odms: params.odms,
       models: params.models
+    },
+    view: {
+      top_odm_sort: params.top_odm_sort,
+      top_model_sort: params.top_model_sort
     }
   }
   const response = await apiClient.post('/ra/segment-analysis/analyze', request)
@@ -248,7 +260,6 @@ export async function analyzeRaModel(params: {
   models: string[]
   segments?: string[]
   odms?: string[]
-  trend_window?: number
 }): Promise<ModelAnalyzeResponse> {
   const request = {
     time_range: {
@@ -259,8 +270,7 @@ export async function analyzeRaModel(params: {
       models: params.models,
       segments: params.segments,
       odms: params.odms
-    },
-    view: params.trend_window ? { trend_months: params.trend_window } : undefined
+    }
   }
   const response = await apiClient.post('/ra/model-analysis/analyze', request)
   return response.data

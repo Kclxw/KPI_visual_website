@@ -322,6 +322,30 @@ CREATE TABLE upload_task (
 COMMENT='上传任务表';
 
 -- ============================================================
+-- 7. 用户表
+-- ============================================================
+DROP TABLE IF EXISTS users;
+CREATE TABLE users (
+  id            INT NOT NULL AUTO_INCREMENT,
+  username      VARCHAR(50)  NOT NULL COMMENT '登录用户名',
+  display_name  VARCHAR(100) NOT NULL COMMENT '显示名称',
+  email         VARCHAR(100) NULL     COMMENT '邮箱（可选）',
+  hashed_password VARCHAR(255) NOT NULL COMMENT 'bcrypt哈希密码',
+  role          ENUM('admin', 'uploader', 'viewer') NOT NULL DEFAULT 'viewer',
+  is_active     TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  last_login    DATETIME NULL COMMENT '最后登录时间',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_username (username),
+  UNIQUE KEY uk_email (email),
+  KEY idx_role (role),
+  KEY idx_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='系统用户表';
+
+-- ============================================================
 -- 完成
 -- ============================================================
 SELECT 'Database schema initialization completed!' AS message;
+

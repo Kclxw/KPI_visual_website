@@ -4,7 +4,11 @@
     <el-container class="main-container">
       <AppHeader @toggle-sidebar="toggleSidebar" :collapse="isCollapse" />
       <el-main class="main-content">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <keep-alive>
+            <component :is="Component" />
+          </keep-alive>
+        </router-view>
       </el-main>
     </el-container>
   </el-container>

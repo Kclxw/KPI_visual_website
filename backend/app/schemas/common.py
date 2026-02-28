@@ -1,4 +1,4 @@
-"""
+﻿"""
 通用Schema定义
 """
 from typing import TypeVar, Generic, Optional, Any
@@ -18,6 +18,12 @@ class TimeRange(BaseModel):
     """时间范围"""
     start_month: str  # YYYY-MM
     end_month: str    # YYYY-MM
+
+
+class OptionsTimeRange(BaseModel):
+    """Options 鏃堕棿鑼冨洿"""
+    min_month: str  # YYYY-MM
+    max_month: str  # YYYY-MM
 
 
 class ViewConfig(BaseModel):
@@ -51,3 +57,4 @@ class PieItem(BaseModel):
     share: float
     numerator: Optional[int] = None
     denominator: Optional[int] = None
+

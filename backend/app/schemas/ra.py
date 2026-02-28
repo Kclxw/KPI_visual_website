@@ -1,9 +1,9 @@
-"""
+﻿"""
 RA相关Schema定义
 """
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel
-from app.schemas.common import TimeRange
+from app.schemas.common import TimeRange, OptionsTimeRange
 
 
 # ==================== Options ====================
@@ -13,6 +13,7 @@ class RaOptionsData(BaseModel):
     month_min: str
     month_max: str
     data_as_of: str
+    time_range: OptionsTimeRange
     segments: List[str]
     odms: List[str]
     models: List[str]
@@ -38,6 +39,7 @@ class RaOdmViewConfig(BaseModel):
     """RA ODM分析视图配置"""
     trend_months: int = 6
     top_model_n: int = 10
+    top_model_sort: Literal["claim", "ra"] = "claim"
 
 
 class RaOdmAnalyzeRequest(BaseModel):
@@ -124,6 +126,8 @@ class RaSegmentViewConfig(BaseModel):
     """RA Segment分析视图配置"""
     trend_months: int = 6
     top_n: int = 10
+    top_odm_sort: Literal["claim", "ra"] = "claim"
+    top_model_sort: Literal["claim", "ra"] = "claim"
 
 
 class RaSegmentAnalyzeRequest(BaseModel):
@@ -192,13 +196,13 @@ class RaSegmentAnalyzeResponse(BaseModel):
 class RaModelFilters(BaseModel):
     """RA Model分析筛选条件"""
     models: List[str]
+    segments: Optional[List[str]] = None
     segment: Optional[str] = None
     odms: Optional[List[str]] = None
 
 
 class RaModelViewConfig(BaseModel):
     """RA Model分析视图配置"""
-    trend_months: int = 6
     top_issue_n: int = 10
 
 
@@ -258,3 +262,5 @@ class RaModelAnalyzeResponse(BaseModel):
     code: int = 0
     message: str = "success"
     data: Optional[RaModelAnalyzeData] = None
+
+

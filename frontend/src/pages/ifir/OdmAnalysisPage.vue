@@ -153,7 +153,13 @@
             :key="card.odm"
             class="carousel-item"
           >
-            <OdmCard :odm="card.odm" :data="card" />
+            <OdmCard
+              :odm="card.odm"
+              :data="card"
+              :time-range="analyzeResult.meta.time_range"
+              :segments="selectedSegments"
+              v-model:top-model-sort="topModelSort"
+            />
           </div>
         </div>
       </div>
@@ -177,7 +183,7 @@ import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { Search, DataAnalysis, Loading } from '@element-plus/icons-vue'
 import OdmCard from '@/components/kpi/ifir/odm/OdmCard.vue'
 import SummaryBlockD from '@/components/kpi/common/SummaryBlockD.vue'
-import { getIfirOptions, analyzeIfirOdm, type IfirOptions, type OdmAnalyzeResponse } from '@/api/ifir'
+import { getIfirOptions, analyzeIfirOdm, type IfirOptions, type OdmAnalyzeResponse, type TopSort } from '@/api/ifir'
 import { ElMessage } from 'element-plus'
 
 // 筛选条件
@@ -185,7 +191,8 @@ const dateRange = ref<[string, string] | null>(null)
 const selectedOdms = ref<string[]>([])
 const selectedSegments = ref<string[]>([])
 const selectedModels = ref<string[]>([])
-const tgtValue = ref(1500) // TGT 目标值 (DPPM)
+const tgtValue = ref(1500) // TGT ??? (DPPM)
+const topModelSort = ref<TopSort>('claim')
 
 // 选项数据
 const optionsLoading = ref(false)
@@ -232,8 +239,7 @@ const loadOptions = async (setDefaultTime = false) => {
     const result = await getIfirOptions({
       segments: selectedSegments.value.length > 0 ? selectedSegments.value : undefined,
       odms: selectedOdms.value.length > 0 ? selectedOdms.value : undefined,
-      models: selectedModels.value.length > 0 ? selectedModels.value : undefined,
-    })
+      models: selectedModels.value.length > 0 ? selectedModels.value : undefined,    })
     options.value = result
     
     // 清除无效的已选项
@@ -271,6 +277,12 @@ watch([selectedSegments, selectedOdms, selectedModels], () => {
   }
 }, { deep: true })
 
+watch([topModelSort], () => {
+  if (showResult.value && !analyzing.value) {
+    handleAnalyze()
+  }
+})
+
 // 分析
 const handleAnalyze = async () => {
   if (selectedOdms.value.length === 0) {
@@ -293,6 +305,7 @@ const handleAnalyze = async () => {
       odms: selectedOdms.value,
       segments: selectedSegments.value.length > 0 ? selectedSegments.value : undefined,
       models: selectedModels.value.length > 0 ? selectedModels.value : undefined,
+      top_model_sort: topModelSort.value,
     })
     
     analyzeResult.value = result

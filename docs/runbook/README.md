@@ -5,6 +5,7 @@
 ## 文档列表
 
 - **local-dev.md** - 本地开发环境搭建指南
+- **startup.md** - 项目启动指南（本地）
 - **deploy.md** - 生产环境部署手册
 - **troubleshooting.md** - 常见问题排查指南
 

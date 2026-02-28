@@ -29,11 +29,22 @@
     <!-- Block B: Top Model表格 -->
     <div class="card-section">
       <div class="section-header">
-        <h3 class="section-title"><el-icon><Medal /></el-icon>Top Model</h3>
-        <el-radio-group v-model="topModelTab" size="small">
-          <el-radio-button value="summary">汇总</el-radio-button>
-          <el-radio-button value="monthly">月度</el-radio-button>
-        </el-radio-group>
+        <div class="header-left">
+          <h3 class="section-title"><el-icon><Medal /></el-icon>Top Model</h3>
+          <div class="sort-group">
+            <span class="sort-label">Top Model 排序</span>
+            <el-radio-group v-model="topModelSortProxy" size="small">
+              <el-radio-button value="claim">CLAIM</el-radio-button>
+              <el-radio-button value="ra">RA</el-radio-button>
+            </el-radio-group>
+          </div>
+        </div>
+        <div class="header-controls">
+          <el-radio-group v-model="topModelTab" size="small">
+            <el-radio-button value="summary">汇总</el-radio-button>
+            <el-radio-button value="monthly">月度</el-radio-button>
+          </el-radio-group>
+        </div>
       </div>
       <div v-if="topModelTab === 'summary'">
         <el-table :data="data.top_models" stripe style="width: 100%" size="small" max-height="400">
@@ -41,8 +52,8 @@
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
           <el-table-column prop="model" label="Model" min-width="120" />
-          <el-table-column prop="ra" label="RA (DPPM)" width="120"><template #default="{ row }">{{ formatDppm(row.ra) }}</template></el-table-column>
-          <el-table-column prop="ra_claim" label="RA CLAIM" width="100" align="right" />
+          <el-table-column prop="ra" label="RA (DPPM)" width="120" :class-name="topModelSort === 'ra' ? 'sort-active' : ''"><template #default="{ row }">{{ formatDppm(row.ra) }}</template></el-table-column>
+          <el-table-column prop="ra_claim" label="RA CLAIM" width="100" align="right" :class-name="topModelSort === 'claim' ? 'sort-active' : ''" />
           <el-table-column prop="ra_mm" label="RA MM" width="100" align="right" />
         </el-table>
       </div>
@@ -57,8 +68,8 @@
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
           <el-table-column prop="model" label="Model" min-width="120" />
-          <el-table-column prop="ra" label="RA (DPPM)" width="120"><template #default="{ row }">{{ formatDppm(row.ra) }}</template></el-table-column>
-          <el-table-column prop="ra_claim" label="RA CLAIM" width="100" align="right" />
+          <el-table-column prop="ra" label="RA (DPPM)" width="120" :class-name="topModelSort === 'ra' ? 'sort-active' : ''"><template #default="{ row }">{{ formatDppm(row.ra) }}</template></el-table-column>
+          <el-table-column prop="ra_claim" label="RA CLAIM" width="100" align="right" :class-name="topModelSort === 'claim' ? 'sort-active' : ''" />
           <el-table-column prop="ra_mm" label="RA MM" width="100" align="right" />
         </el-table>
       </div>
@@ -89,14 +100,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onActivated, watch, computed } from 'vue'
 import * as echarts from 'echarts'
 import { OfficeBuilding, TrendCharts, Medal, MagicStick } from '@element-plus/icons-vue'
 import type { OdmCard as OdmCardData } from '@/api/ra'
 
+type TopSort = 'claim' | 'ra'
+
 const props = defineProps<{
   odm: string
   data: OdmCardData
+  topModelSort: TopSort
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:topModelSort', value: TopSort): void
 }>()
 
 const chartRef = ref<HTMLElement>()
@@ -107,6 +125,10 @@ const detailData = ref({ month: '', value: 0 })
 
 // Top Model Tab切换
 const topModelTab = ref<'summary' | 'monthly'>('summary')
+const topModelSortProxy = computed({
+  get: () => props.topModelSort,
+  set: (value: TopSort) => emit('update:topModelSort', value)
+})
 const selectedMonth = ref('')
 const monthlyTopModelMonths = computed(() => (props.data.monthly_top_models ?? [])
   .map(m => m.month)
@@ -223,6 +245,7 @@ const initChart = () => {
 }
 
 onMounted(() => initChart())
+onActivated(() => chartInstance?.resize())
 watch(() => props.data, () => initChart(), { deep: true })
 window.addEventListener('resize', () => chartInstance?.resize())
 </script>
@@ -236,6 +259,10 @@ window.addEventListener('resize', () => chartInstance?.resize())
 .card-section { padding: 20px; border-bottom: 1px solid var(--border-color);
   &:last-child { border-bottom: none; }
   .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .header-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .sort-group { display: inline-flex; align-items: center; gap: 8px; }
+  .header-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .sort-label { font-size: 12px; color: var(--text-color-secondary); }
   .section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; color: var(--text-color); margin: 0; .el-icon { color: var(--primary-color); } }
 }
 .trend-chart { height: 300px; width: 100%; }
@@ -245,4 +272,7 @@ window.addEventListener('resize', () => chartInstance?.resize())
 }
 .detail-content { p { margin: 12px 0; font-size: 14px; } }
 .month-selector { margin-bottom: 12px; }
+:deep(th.sort-active) { background: #f3f8ff; }
+:deep(td.sort-active) { background: #f9fbff; }
+:deep(.sort-active .cell) { font-weight: 600; color: #409eff; }
 </style>

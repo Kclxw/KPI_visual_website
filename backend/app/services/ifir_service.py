@@ -1,3 +1,4 @@
+﻿
 """
 IFIR分析服务
 """
@@ -49,6 +50,69 @@ class IfirService:
         if total == 0:
             return 0.0
         return round(value / total, 4)
+
+    def _sort_top_items(self, items: List[dict], sort_key: str) -> None:
+        if sort_key == "claim":
+            items.sort(
+                key=lambda x: (x.get("box_claim") or 0, x.get("ifir") or 0),
+                reverse=True
+            )
+        else:
+            items.sort(
+                key=lambda x: (x.get("ifir") or 0, x.get("box_claim") or 0),
+                reverse=True
+            )
+
+    def _get_top_issue_by_model(
+        self,
+        start_date: date,
+        end_date: date,
+        models: List[str],
+        segments: Optional[List[str]] = None,
+        plant_list: Optional[List[str]] = None,
+        top_n: int = 1
+    ) -> dict:
+        """鑾峰彇姣忎釜Model鐨凾op Issue鍒楄〃锛坒ault_category锛?"""
+        if not models:
+            return {}
+
+        issue_query = self.db.query(
+            FactIfirDetail.model,
+            FactIfirDetail.fault_category,
+            func.count().label("issue_count")
+        ).filter(
+            FactIfirDetail.delivery_month >= start_date,
+            FactIfirDetail.delivery_month <= end_date,
+            FactIfirDetail.model.in_(models),
+            FactIfirDetail.fault_category.isnot(None),
+            FactIfirDetail.fault_category != ""
+        )
+        if segments:
+            issue_query = issue_query.filter(FactIfirDetail.segment.in_(segments))
+        if plant_list:
+            issue_query = issue_query.filter(FactIfirDetail.plant.in_(plant_list))
+
+        issue_rows = issue_query.group_by(
+            FactIfirDetail.model, FactIfirDetail.fault_category
+        ).order_by(FactIfirDetail.model, desc("issue_count")).all()
+
+        totals_by_model = {}
+        for r in issue_rows:
+            totals_by_model[r.model] = totals_by_model.get(r.model, 0) + r.issue_count
+
+        top_issues_by_model = {}
+        for r in issue_rows:
+            issues = top_issues_by_model.setdefault(r.model, [])
+            if len(issues) >= top_n:
+                continue
+            total = totals_by_model.get(r.model, 0)
+            issues.append(TopIssueRow(
+                rank=len(issues) + 1,
+                issue=r.fault_category,
+                count=r.issue_count,
+                share=self._calc_share(r.issue_count, total) if total > 0 else 0
+            ))
+        return top_issues_by_model
     
     # ==================== Options API ====================
     
@@ -99,6 +163,7 @@ class IfirService:
             month_min=month_min,
             month_max=month_max,
             data_as_of=month_max,
+            time_range={"min_month": month_min, "max_month": month_max},
             segments=segments_list,
             odms=odms_list,
             models=models_list
@@ -112,6 +177,7 @@ class IfirService:
         end_date = self._parse_month(request.time_range.end_month)
         view = request.view or IfirOdmAnalyzeRequest.__fields__["view"].default
         top_model_n = view.top_model_n if view else 10
+        top_model_sort = view.top_model_sort if view else "claim"
         
         odms = request.filters.odms
         segments = request.filters.segments
@@ -157,8 +223,21 @@ class IfirService:
             summary = IfirOdmSummary(odm_pie=odm_pie)
         
         # 2. 为每个ODM生成卡片
+        odm_plant_map = {}
+        if odms:
+            odm_plant_rows = self.db.query(
+                MapOdmToPlant.supplier_new,
+                MapOdmToPlant.plant
+            ).filter(
+                MapOdmToPlant.kpi_type == "IFIR",
+                MapOdmToPlant.supplier_new.in_(odms)
+            ).all()
+            for odm_name, plant in odm_plant_rows:
+                odm_plant_map.setdefault(odm_name, []).append(plant)
+
         cards = []
         for odm in odms:
+            plant_list = odm_plant_map.get(odm) or None
             # Block A - 趋势 (返回完整时间范围数据)
             trend_query = self.db.query(
                 FactIfirRow.delivery_month,
@@ -201,6 +280,14 @@ class IfirService:
                 top_query = top_query.filter(FactIfirRow.model.in_(models))
             
             top_data = top_query.group_by(FactIfirRow.model).all()
+
+            top_issues_map = self._get_top_issue_by_model(
+                start_date=start_date,
+                end_date=end_date,
+                models=[r.model for r in top_data],
+                segments=segments,
+                plant_list=plant_list
+            )
             
             # 计算IFIR并排序
             top_models_raw = [
@@ -208,11 +295,12 @@ class IfirService:
                     "model": r.model,
                     "ifir": self._calc_ifir(r.box_claim_sum, r.box_mm_sum),
                     "box_claim": r.box_claim_sum,
-                    "box_mm": r.box_mm_sum
+                    "box_mm": r.box_mm_sum,
+                    "top_issues": top_issues_map.get(r.model)
                 }
                 for r in top_data
             ]
-            top_models_raw.sort(key=lambda x: x["ifir"], reverse=True)
+            self._sort_top_items(top_models_raw, top_model_sort)
             
             top_models = [
                 TopModelRow(
@@ -220,7 +308,8 @@ class IfirService:
                     model=item["model"],
                     ifir=item["ifir"],
                     box_claim=item["box_claim"],
-                    box_mm=item["box_mm"]
+                    box_mm=item["box_mm"],
+                    top_issues=item.get("top_issues")
                 )
                 for i, item in enumerate(top_models_raw[:top_model_n])
             ]
@@ -256,14 +345,15 @@ class IfirService:
                     "model": r.model,
                     "ifir": self._calc_ifir(r.box_claim_sum, r.box_mm_sum),
                     "box_claim": r.box_claim_sum,
-                    "box_mm": r.box_mm_sum
+                    "box_mm": r.box_mm_sum,
+                    "top_issues": top_issues_map.get(r.model)
                 })
             
             # 每个月取Top N
             monthly_top_models = []
             for month_str in sorted(monthly_dict.keys()):
                 items = monthly_dict[month_str]
-                items.sort(key=lambda x: x["ifir"], reverse=True)
+                self._sort_top_items(items, top_model_sort)
                 monthly_top_models.append(MonthlyTopModels(
                     month=month_str,
                     items=[
@@ -301,10 +391,20 @@ class IfirService:
         end_date = self._parse_month(request.time_range.end_month)
         view = request.view or IfirSegmentAnalyzeRequest.__fields__["view"].default
         top_n = view.top_n if view else 10
+        top_odm_sort = view.top_odm_sort if view else "claim"
+        top_model_sort = view.top_model_sort if view else "claim"
         
         segments = request.filters.segments
         odms = request.filters.odms
         models = request.filters.models
+
+        plant_list = None
+        if odms:
+            plant_rows = self.db.query(MapOdmToPlant.plant).filter(
+                MapOdmToPlant.kpi_type == "IFIR",
+                MapOdmToPlant.supplier_new.in_(odms)
+            ).distinct().all()
+            plant_list = [r[0] for r in plant_rows]
         
         def apply_filters(query):
             query = query.filter(
@@ -317,6 +417,7 @@ class IfirService:
             if models:
                 query = query.filter(FactIfirRow.model.in_(models))
             return query
+
         
         # Block D - Segment饼图汇总
         summary = None
@@ -393,7 +494,7 @@ class IfirService:
                 {"odm": r.supplier_new, "ifir": self._calc_ifir(r.box_claim_sum, r.box_mm_sum), "box_claim": r.box_claim_sum, "box_mm": r.box_mm_sum}
                 for r in odm_data
             ]
-            odm_raw.sort(key=lambda x: x["ifir"], reverse=True)
+            self._sort_top_items(odm_raw, top_odm_sort)
             top_odms = [TopOdmRow(rank=i+1, **item) for i, item in enumerate(odm_raw[:top_n])]
             
             # Block B - Top Model (汇总)
@@ -413,11 +514,24 @@ class IfirService:
                 model_query = model_query.filter(FactIfirRow.model.in_(models))
             
             model_data = model_query.group_by(FactIfirRow.model).all()
+            top_issues_map = self._get_top_issue_by_model(
+                start_date=start_date,
+                end_date=end_date,
+                models=[r.model for r in model_data],
+                segments=[segment],
+                plant_list=plant_list
+            )
             model_raw = [
-                {"model": r.model, "ifir": self._calc_ifir(r.box_claim_sum, r.box_mm_sum), "box_claim": r.box_claim_sum, "box_mm": r.box_mm_sum}
+                {
+                    "model": r.model,
+                    "ifir": self._calc_ifir(r.box_claim_sum, r.box_mm_sum),
+                    "box_claim": r.box_claim_sum,
+                    "box_mm": r.box_mm_sum,
+                    "top_issues": top_issues_map.get(r.model)
+                }
                 for r in model_data
             ]
-            model_raw.sort(key=lambda x: x["ifir"], reverse=True)
+            self._sort_top_items(model_raw, top_model_sort)
             top_models = [TopModelRow(rank=i+1, **item) for i, item in enumerate(model_raw[:top_n])]
             
             # 月度明细 - Top ODM
@@ -456,7 +570,7 @@ class IfirService:
             monthly_top_odms = []
             for month_str in sorted(monthly_odm_dict.keys()):
                 items = monthly_odm_dict[month_str]
-                items.sort(key=lambda x: x["ifir"], reverse=True)
+                self._sort_top_items(items, top_odm_sort)
                 monthly_top_odms.append(MonthlyTopOdms(
                     month=month_str,
                     items=[TopOdmRow(rank=i+1, **item) for i, item in enumerate(items[:top_n])]
@@ -492,13 +606,14 @@ class IfirService:
                     "model": r.model,
                     "ifir": self._calc_ifir(r.box_claim_sum, r.box_mm_sum),
                     "box_claim": r.box_claim_sum,
-                    "box_mm": r.box_mm_sum
+                    "box_mm": r.box_mm_sum,
+                    "top_issues": top_issues_map.get(r.model)
                 })
             
             monthly_top_models = []
             for month_str in sorted(monthly_model_dict.keys()):
                 items = monthly_model_dict[month_str]
-                items.sort(key=lambda x: x["ifir"], reverse=True)
+                self._sort_top_items(items, top_model_sort)
                 monthly_top_models.append(MonthlyTopModels(
                     month=month_str,
                     items=[TopModelRow(rank=i+1, **item) for i, item in enumerate(items[:top_n])]
@@ -697,3 +812,5 @@ class IfirService:
             summary=summary,
             cards=cards
         )
+
+

@@ -1,9 +1,9 @@
-"""
+﻿"""
 IFIR相关Schema定义
 """
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Literal
 from pydantic import BaseModel
-from app.schemas.common import TimeRange
+from app.schemas.common import TimeRange, OptionsTimeRange
 
 
 # ==================== Options ====================
@@ -13,6 +13,7 @@ class IfirOptionsData(BaseModel):
     month_min: str
     month_max: str
     data_as_of: str
+    time_range: OptionsTimeRange
     segments: List[str]
     odms: List[str]
     models: List[str]
@@ -38,6 +39,7 @@ class IfirOdmViewConfig(BaseModel):
     """IFIR ODM分析视图配置"""
     trend_months: int = 6
     top_model_n: int = 10
+    top_model_sort: Literal["claim", "ifir"] = "claim"
 
 
 class IfirOdmAnalyzeRequest(BaseModel):
@@ -53,6 +55,14 @@ class IfirTrendPoint(BaseModel):
     ifir: float
 
 
+class TopIssueRow(BaseModel):
+    """Top Issue数据行"""
+    rank: int
+    issue: str
+    count: int
+    share: Optional[float] = None
+
+
 class TopModelRow(BaseModel):
     """Top Model数据行"""
     rank: int
@@ -60,6 +70,7 @@ class TopModelRow(BaseModel):
     ifir: float
     box_claim: Optional[int] = None
     box_mm: Optional[int] = None
+    top_issues: Optional[List[TopIssueRow]] = None
 
 
 class MonthlyTopModels(BaseModel):
@@ -124,6 +135,8 @@ class IfirSegmentViewConfig(BaseModel):
     """IFIR Segment分析视图配置"""
     trend_months: int = 6
     top_n: int = 10
+    top_odm_sort: Literal["claim", "ifir"] = "claim"
+    top_model_sort: Literal["claim", "ifir"] = "claim"
 
 
 class IfirSegmentAnalyzeRequest(BaseModel):
@@ -198,8 +211,7 @@ class IfirModelFilters(BaseModel):
 
 class IfirModelViewConfig(BaseModel):
     """IFIR Model分析视图配置"""
-    trend_months: int = 6
-    top_issue_n: int = 10
+    top_issue_n: int = 5
 
 
 class IfirModelAnalyzeRequest(BaseModel):
@@ -207,14 +219,6 @@ class IfirModelAnalyzeRequest(BaseModel):
     time_range: TimeRange
     filters: IfirModelFilters
     view: Optional[IfirModelViewConfig] = None
-
-
-class TopIssueRow(BaseModel):
-    """Top Issue数据行"""
-    rank: int
-    issue: str
-    count: int
-    share: Optional[float] = None
 
 
 class MonthlyTopIssues(BaseModel):
@@ -260,6 +264,55 @@ class IfirModelAnalyzeResponse(BaseModel):
     data: Optional[IfirModelAnalyzeData] = None
 
 
+# ==================== Model Issue Details ====================
+
+class IfirModelIssueFilters(BaseModel):
+    """IFIR Model Issue明细筛选条件"""
+    model: str
+    issue: str
+    segments: Optional[List[str]] = None
+    odms: Optional[List[str]] = None
+
+
+class IfirModelIssuePagination(BaseModel):
+    """分页参数"""
+    page: int = 1
+    page_size: int = 10
+
+
+class IfirModelIssueRequest(BaseModel):
+    """IFIR Model Issue明细请求"""
+    time_range: TimeRange
+    filters: IfirModelIssueFilters
+    pagination: Optional[IfirModelIssuePagination] = None
+
+
+class IfirModelIssueDetailRow(BaseModel):
+    """IFIR Model Issue明细行"""
+    model: str
+    fault_category: str
+    problem_descr_by_tech: Optional[str] = None
+    claim_nbr: str
+    claim_month: str
+    plant: Optional[str] = None
+
+
+class IfirModelIssueDetailData(BaseModel):
+    """IFIR Model Issue明细响应数据"""
+    total: int
+    page: int
+    page_size: int
+    items: List[IfirModelIssueDetailRow]
+
+
+class IfirModelIssueDetailResponse(BaseModel):
+    """IFIR Model Issue明细响应"""
+    code: int = 0
+    message: str = "success"
+    data: Optional[IfirModelIssueDetailData] = None
+
+
 # ==================== 通用别名 ====================
 
 IfirAnalyzeRequest = Union[IfirOdmAnalyzeRequest, IfirSegmentAnalyzeRequest, IfirModelAnalyzeRequest]
+

@@ -23,16 +23,6 @@
         </div>
         
         <div class="filter-item">
-          <span class="filter-label">趋势窗口</span>
-          <el-select v-model="trendMonths" style="width: 100px">
-            <el-option :value="6" label="6个月" />
-            <el-option :value="12" label="12个月" />
-            <el-option :value="18" label="18个月" />
-            <el-option :value="24" label="24个月" />
-          </el-select>
-        </div>
-        
-        <div class="filter-item">
           <span class="filter-label">Segment</span>
           <el-select
             v-model="selectedSegments"
@@ -161,7 +151,13 @@
             :key="card.model"
             class="carousel-item"
           >
-            <ModelCard :model="card.model" :data="card" />
+            <ModelCard
+              :model="card.model"
+              :data="card"
+              :time-range="analyzeResult.meta.time_range"
+              :segments="selectedSegments"
+              :odms="selectedOdms"
+            />
           </div>
         </div>
       </div>
@@ -190,7 +186,6 @@ import { ElMessage } from 'element-plus'
 
 // 筛选条件
 const dateRange = ref<[string, string] | null>(null)
-const trendMonths = ref(6)
 const selectedSegments = ref<string[]>([])
 const selectedOdms = ref<string[]>([])
 const selectedModels = ref<string[]>([])
@@ -302,7 +297,6 @@ const handleAnalyze = async () => {
       models: selectedModels.value,
       segments: selectedSegments.value.length > 0 ? selectedSegments.value : undefined,
       odms: selectedOdms.value.length > 0 ? selectedOdms.value : undefined,
-      trend_window: trendMonths.value,
     })
     
     analyzeResult.value = result

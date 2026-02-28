@@ -29,79 +29,141 @@
     <!-- Block B: Top ODM表格 -->
     <div class="card-section">
       <div class="section-header">
-        <h3 class="section-title"><el-icon><OfficeBuilding /></el-icon>Top ODM</h3>
-        <el-radio-group v-model="topOdmTab" size="small">
-          <el-radio-button value="summary">汇总</el-radio-button>
-          <el-radio-button value="monthly">月度</el-radio-button>
-        </el-radio-group>
+        <div class="header-left">
+          <h3 class="section-title"><el-icon><OfficeBuilding /></el-icon>Top ODM</h3>
+          <div class="sort-group">
+            <span class="sort-label">Top ODM 排序</span>
+            <el-radio-group v-model="topOdmSortProxy" size="small">
+              <el-radio-button value="claim">CLAIM</el-radio-button>
+              <el-radio-button value="ifir">IFIR</el-radio-button>
+            </el-radio-group>
+          </div>
+        </div>
+        <div class="header-controls">
+          <el-radio-group v-model="topOdmTab" size="small">
+            <el-radio-button value="summary">Summary</el-radio-button>
+            <el-radio-button value="monthly">Monthly</el-radio-button>
+          </el-radio-group>
+        </div>
       </div>
       <div v-if="topOdmTab === 'summary'">
         <el-table :data="data.top_odms" stripe style="width: 100%" size="small" max-height="400">
-          <el-table-column prop="rank" label="排名" width="70" align="center">
+          <el-table-column prop="rank" label="Rank" width="60" align="center">
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
-          <el-table-column prop="odm" label="ODM" min-width="120" />
-          <el-table-column prop="ifir" label="IFIR (DPPM)" width="120"><template #default="{ row }">{{ formatDppm(row.ifir) }}</template></el-table-column>
-          <el-table-column prop="box_claim" label="BOX CLAIM" width="100" align="right" />
-          <el-table-column prop="box_mm" label="BOX MM" width="100" align="right" />
+          <el-table-column prop="odm" label="ODM" min-width="140" />
+          <el-table-column prop="ifir" label="IFIR (DPPM)" width="120" :class-name="topOdmSort === 'ifir' ? 'sort-active' : ''">
+            <template #default="{ row }">{{ formatDppm(row.ifir) }}</template>
+          </el-table-column>
+          <el-table-column prop="box_claim" label="BOX CLAIM" min-width="110" align="right" :class-name="topOdmSort === 'claim' ? 'sort-active' : ''" />
+          <el-table-column prop="box_mm" label="BOX MM" min-width="110" align="right" />
         </el-table>
       </div>
       <div v-else>
         <div class="month-selector">
-          <el-select v-model="selectedOdmMonth" placeholder="选择月份" size="small" style="width: 150px">
+          <el-select v-model="selectedOdmMonth" placeholder="Month" size="small" style="width: 150px">
             <el-option v-for="item in monthlyOdmMonths" :key="item" :label="item" :value="item" />
           </el-select>
         </div>
         <el-table :data="currentMonthlyOdms" stripe style="width: 100%" size="small" max-height="400">
-          <el-table-column prop="rank" label="排名" width="70" align="center">
+          <el-table-column prop="rank" label="Rank" width="60" align="center">
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
-          <el-table-column prop="odm" label="ODM" min-width="120" />
-          <el-table-column prop="ifir" label="IFIR (DPPM)" width="120"><template #default="{ row }">{{ formatDppm(row.ifir) }}</template></el-table-column>
-          <el-table-column prop="box_claim" label="BOX CLAIM" width="100" align="right" />
-          <el-table-column prop="box_mm" label="BOX MM" width="100" align="right" />
+          <el-table-column prop="odm" label="ODM" min-width="140" />
+          <el-table-column prop="ifir" label="IFIR (DPPM)" width="120" :class-name="topOdmSort === 'ifir' ? 'sort-active' : ''">
+            <template #default="{ row }">{{ formatDppm(row.ifir) }}</template>
+          </el-table-column>
+          <el-table-column prop="box_claim" label="BOX CLAIM" min-width="110" align="right" :class-name="topOdmSort === 'claim' ? 'sort-active' : ''" />
+          <el-table-column prop="box_mm" label="BOX MM" min-width="110" align="right" />
         </el-table>
       </div>
     </div>
-    
+
     <!-- Block C: Top Model表格 -->
     <div class="card-section">
       <div class="section-header">
-        <h3 class="section-title"><el-icon><Medal /></el-icon>Top Model</h3>
-        <el-radio-group v-model="topModelTab" size="small">
-          <el-radio-button value="summary">汇总</el-radio-button>
-          <el-radio-button value="monthly">月度</el-radio-button>
-        </el-radio-group>
+        <div class="header-left">
+          <h3 class="section-title"><el-icon><Medal /></el-icon>Top Model</h3>
+          <div class="sort-group">
+            <span class="sort-label">Top Model 排序</span>
+            <el-radio-group v-model="topModelSortProxy" size="small">
+              <el-radio-button value="claim">CLAIM</el-radio-button>
+              <el-radio-button value="ifir">IFIR</el-radio-button>
+            </el-radio-group>
+          </div>
+        </div>
+        <div class="header-controls">
+          <el-radio-group v-model="topModelTab" size="small">
+            <el-radio-button value="summary">Summary</el-radio-button>
+            <el-radio-button value="monthly">Monthly</el-radio-button>
+          </el-radio-group>
+        </div>
       </div>
       <div v-if="topModelTab === 'summary'">
         <el-table :data="data.top_models" stripe style="width: 100%" size="small" max-height="400">
-          <el-table-column prop="rank" label="排名" width="70" align="center">
+          <el-table-column prop="rank" label="Rank" width="60" align="center">
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
-          <el-table-column prop="model" label="Model" min-width="120" />
-          <el-table-column prop="ifir" label="IFIR (DPPM)" width="120"><template #default="{ row }">{{ formatDppm(row.ifir) }}</template></el-table-column>
-          <el-table-column prop="box_claim" label="BOX CLAIM" width="100" align="right" />
-          <el-table-column prop="box_mm" label="BOX MM" width="100" align="right" />
+          <el-table-column prop="model" label="Model" min-width="140" />
+          <el-table-column label="Top Issue" min-width="220">
+            <template #default="{ row }">
+              <div class="issue-list" v-if="row.top_issues?.length">
+                <el-link
+                  v-for="issue in row.top_issues"
+                  :key="issue.issue"
+                  type="primary"
+                  :underline="false"
+                  @click.stop.prevent="openIssueDetails(row.model, issue.issue)"
+                >
+                  {{ formatIssueLabel(issue) }}
+                </el-link>
+              </div>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="ifir" label="IFIR (DPPM)" width="120" :class-name="topModelSort === 'ifir' ? 'sort-active' : ''">
+            <template #default="{ row }">{{ formatDppm(row.ifir) }}</template>
+          </el-table-column>
+          <el-table-column prop="box_claim" label="BOX CLAIM" min-width="110" align="right" :class-name="topModelSort === 'claim' ? 'sort-active' : ''" />
+          <el-table-column prop="box_mm" label="BOX MM" min-width="110" align="right" />
         </el-table>
       </div>
       <div v-else>
         <div class="month-selector">
-          <el-select v-model="selectedModelMonth" placeholder="选择月份" size="small" style="width: 150px">
+          <el-select v-model="selectedModelMonth" placeholder="Month" size="small" style="width: 150px">
             <el-option v-for="item in monthlyModelMonths" :key="item" :label="item" :value="item" />
           </el-select>
         </div>
         <el-table :data="currentMonthlyModels" stripe style="width: 100%" size="small" max-height="400">
-          <el-table-column prop="rank" label="排名" width="70" align="center">
+          <el-table-column prop="rank" label="Rank" width="60" align="center">
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
-          <el-table-column prop="model" label="Model" min-width="120" />
-          <el-table-column prop="ifir" label="IFIR (DPPM)" width="120"><template #default="{ row }">{{ formatDppm(row.ifir) }}</template></el-table-column>
-          <el-table-column prop="box_claim" label="BOX CLAIM" width="100" align="right" />
-          <el-table-column prop="box_mm" label="BOX MM" width="100" align="right" />
+          <el-table-column prop="model" label="Model" min-width="140" />
+          <el-table-column label="Top Issue" min-width="220">
+            <template #default="{ row }">
+              <div class="issue-list" v-if="row.top_issues?.length">
+                <el-link
+                  v-for="issue in row.top_issues"
+                  :key="issue.issue"
+                  type="primary"
+                  :underline="false"
+                  @click.stop.prevent="openIssueDetails(row.model, issue.issue)"
+                >
+                  {{ formatIssueLabel(issue) }}
+                </el-link>
+              </div>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="ifir" label="IFIR (DPPM)" width="120" :class-name="topModelSort === 'ifir' ? 'sort-active' : ''">
+            <template #default="{ row }">{{ formatDppm(row.ifir) }}</template>
+          </el-table-column>
+          <el-table-column prop="box_claim" label="BOX CLAIM" min-width="110" align="right" :class-name="topModelSort === 'claim' ? 'sort-active' : ''" />
+          <el-table-column prop="box_mm" label="BOX MM" min-width="110" align="right" />
         </el-table>
       </div>
     </div>
-    
+
     <!-- Block D: AI总结 -->
     <div class="card-section">
       <div class="ai-summary">
@@ -123,18 +185,54 @@
         <p><strong>占比：</strong>{{ formatPercent(detailData.value) }}</p>
       </div>
     </el-dialog>
+
+    <!-- Issue 明细弹窗 -->
+    <el-dialog v-model="issueDialogVisible" :title="issueDialogTitle" width="900px" :close-on-click-modal="true">
+      <el-table :data="issueRows" stripe style="width: 100%" size="small" v-loading="issueLoading" max-height="400">
+        <el-table-column prop="model" label="Model" min-width="120" />
+        <el-table-column prop="fault_category" label="不良现象" min-width="180" />
+        <el-table-column prop="problem_descr_by_tech" label="Problem_Descr_by_Tech" min-width="260">
+          <template #default="{ row }">{{ row.problem_descr_by_tech || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="claim_nbr" label="Claim_Nbr" min-width="140" />
+        <el-table-column prop="claim_month" label="Claim_Month" width="120" />
+        <el-table-column prop="plant" label="Plant" width="120" />
+      </el-table>
+      <div class="pagination-bar">
+        <el-pagination
+          v-model:current-page="issuePage"
+          v-model:page-size="issuePageSize"
+          :total="issueTotal"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next"
+          @current-change="handleIssuePageChange"
+          @size-change="handleIssuePageSizeChange"
+        />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onActivated, watch, computed } from 'vue'
 import * as echarts from 'echarts'
 import { PieChart, TrendCharts, OfficeBuilding, Medal, MagicStick } from '@element-plus/icons-vue'
-import type { SegmentCard as SegmentCardData } from '@/api/ifir'
+import { getIfirModelIssueDetails, type SegmentCard as SegmentCardData, type IssueDetailRow, type TopIssue } from '@/api/ifir'
+
+type TopSort = 'claim' | 'ifir'
 
 const props = defineProps<{
   segment: string
   data: SegmentCardData
+  timeRange: { start_month: string; end_month: string }
+  odms?: string[]
+  topOdmSort: TopSort
+  topModelSort: TopSort
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:topOdmSort', value: TopSort): void
+  (e: 'update:topModelSort', value: TopSort): void
 }>()
 
 const chartRef = ref<HTMLElement>()
@@ -143,8 +241,22 @@ const chartMode = ref<'yearly' | 'timeline'>('timeline')
 const detailVisible = ref(false)
 const detailData = ref({ month: '', value: 0 })
 
+const issueDialogVisible = ref(false)
+const issueRows = ref<IssueDetailRow[]>([])
+const issueLoading = ref(false)
+const issueTotal = ref(0)
+const issuePage = ref(1)
+const issuePageSize = ref(10)
+const currentIssue = ref('')
+const currentIssueModel = ref('')
+const issueDialogTitle = computed(() => currentIssue.value ? `Issue 明细：${currentIssue.value}` : 'Issue 明细')
+
 // Top ODM Tab切换
 const topOdmTab = ref<'summary' | 'monthly'>('summary')
+const topOdmSortProxy = computed({
+  get: () => props.topOdmSort,
+  set: (value: TopSort) => emit('update:topOdmSort', value)
+})
 const selectedOdmMonth = ref('')
 const monthlyOdmMonths = computed(() => (props.data.monthly_top_odms ?? [])
   .map(m => m.month)
@@ -160,6 +272,10 @@ watch(monthlyOdmMonths, (months) => {
 
 // Top Model Tab切换
 const topModelTab = ref<'summary' | 'monthly'>('summary')
+const topModelSortProxy = computed({
+  get: () => props.topModelSort,
+  set: (value: TopSort) => emit('update:topModelSort', value)
+})
 const selectedModelMonth = ref('')
 const monthlyModelMonths = computed(() => (props.data.monthly_top_models ?? [])
   .map(m => m.month)
@@ -190,6 +306,51 @@ const formatPercent = (value: number) => {
   return `${(value * 100).toFixed(4)}%`
 }
 
+const formatIssueLabel = (issue: TopIssue) => `${issue.issue} * ${issue.count}`
+
+const openIssueDetails = async (model: string, issue: string) => {
+  if (!issue || !model) return
+  currentIssue.value = issue
+  currentIssueModel.value = model
+  issuePage.value = 1
+  issueDialogVisible.value = true
+  await fetchIssueDetails()
+}
+
+const fetchIssueDetails = async () => {
+  if (!currentIssue.value || !currentIssueModel.value) return
+  issueLoading.value = true
+  try {
+    const result = await getIfirModelIssueDetails({
+      start_month: props.timeRange.start_month,
+      end_month: props.timeRange.end_month,
+      model: currentIssueModel.value,
+      issue: currentIssue.value,
+      segments: [props.segment],
+      odms: props.odms && props.odms.length ? props.odms : undefined,
+      page: issuePage.value,
+      page_size: issuePageSize.value
+    })
+    issueRows.value = result.items || []
+    issueTotal.value = result.total || 0
+  } catch {
+    issueRows.value = []
+    issueTotal.value = 0
+  } finally {
+    issueLoading.value = false
+  }
+}
+
+const handleIssuePageChange = async (page: number) => {
+  issuePage.value = page
+  await fetchIssueDetails()
+}
+
+const handleIssuePageSizeChange = async (size: number) => {
+  issuePageSize.value = size
+  issuePage.value = 1
+  await fetchIssueDetails()
+}
 
 const getYearlyData = () => {
   const yearMap: Record<string, { month: string; ifir: number }[]> = {}
@@ -277,6 +438,7 @@ const initChart = () => {
 }
 
 onMounted(() => initChart())
+onActivated(() => chartInstance?.resize())
 watch(() => props.data, () => initChart(), { deep: true })
 window.addEventListener('resize', () => chartInstance?.resize())
 </script>
@@ -289,8 +451,12 @@ window.addEventListener('resize', () => chartInstance?.resize())
 }
 .card-section { padding: 20px; border-bottom: 1px solid var(--border-color);
   &:last-child { border-bottom: none; }
-  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
   .section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; color: var(--text-color); margin: 0; .el-icon { color: #67c23a; } }
+  .header-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .sort-group { display: inline-flex; align-items: center; gap: 8px; }
+  .header-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .sort-label { font-size: 12px; color: var(--text-color-secondary); }
 }
 .trend-chart { height: 300px; width: 100%; }
 .ai-summary {
@@ -299,4 +465,11 @@ window.addEventListener('resize', () => chartInstance?.resize())
 }
 .detail-content { p { margin: 12px 0; font-size: 14px; } }
 .month-selector { margin-bottom: 12px; }
+.issue-list { display: flex; flex-direction: column; gap: 4px; }
+.issue-list { align-items: flex-start; }
+.issue-list :deep(.el-link) { display: block; width: 100%; }
+.pagination-bar { margin-top: 12px; display: flex; justify-content: flex-end; }
+:deep(th.sort-active) { background: #f3f8ff; }
+:deep(td.sort-active) { background: #f9fbff; }
+:deep(.sort-active .cell) { font-weight: 600; color: #409eff; }
 </style>

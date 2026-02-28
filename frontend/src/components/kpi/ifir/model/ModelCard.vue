@@ -36,12 +36,17 @@
         </el-radio-group>
       </div>
       <div v-if="topIssueTab === 'summary'">
-        <el-table :data="data.top_issues" stripe style="width: 100%" size="small" max-height="400">
+        <el-table :data="data.top_issues" stripe style="width: 100%" size="small" max-height="400" @row-click="handleIssueRowClick" empty-text="无Top Issue">
           <el-table-column prop="rank" label="排名" width="70" align="center">
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
-          <el-table-column prop="issue" label="问题类型" min-width="180" />
-          <el-table-column prop="count" label="数量" width="100" align="right" />
+          <el-table-column label="不良现象*频次" min-width="220">
+            <template #default="{ row }">
+              <el-link class="issue-link" type="primary" :underline="false" @click.stop.prevent="openIssueDetails(row.issue)">
+                {{ formatIssueLabel(row) }}
+              </el-link>
+            </template>
+          </el-table-column>
           <el-table-column prop="share" label="占比" width="100"><template #default="{ row }">{{ formatSharePercent(row.share) }}</template></el-table-column>
         </el-table>
       </div>
@@ -51,12 +56,17 @@
             <el-option v-for="item in monthlyIssueMonths" :key="item" :label="item" :value="item" />
           </el-select>
         </div>
-        <el-table :data="currentMonthlyIssues" stripe style="width: 100%" size="small" max-height="400">
+        <el-table :data="currentMonthlyIssues" stripe style="width: 100%" size="small" max-height="400" @row-click="handleIssueRowClick" empty-text="无Top Issue">
           <el-table-column prop="rank" label="排名" width="70" align="center">
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
-          <el-table-column prop="issue" label="问题类型" min-width="180" />
-          <el-table-column prop="count" label="数量" width="100" align="right" />
+          <el-table-column label="不良现象*频次" min-width="220">
+            <template #default="{ row }">
+              <el-link class="issue-link" type="primary" :underline="false" @click.stop.prevent="openIssueDetails(row.issue)">
+                {{ formatIssueLabel(row) }}
+              </el-link>
+            </template>
+          </el-table-column>
           <el-table-column prop="share" label="占比" width="100"><template #default="{ row }">{{ formatSharePercent(row.share) }}</template></el-table-column>
         </el-table>
       </div>
@@ -83,18 +93,46 @@
         <p><strong>占比：</strong>{{ formatPercent(detailData.value) }}</p>
       </div>
     </el-dialog>
+
+    <!-- Issue 明细弹窗 -->
+    <el-dialog v-model="issueDialogVisible" :title="issueDialogTitle" width="900px" :close-on-click-modal="true">
+      <el-table :data="issueRows" stripe style="width: 100%" size="small" v-loading="issueLoading" max-height="400">
+        <el-table-column prop="model" label="Model" min-width="120" />
+        <el-table-column prop="fault_category" label="不良现象" min-width="180" />
+        <el-table-column prop="problem_descr_by_tech" label="Problem_Descr_by_Tech" min-width="260">
+          <template #default="{ row }">{{ row.problem_descr_by_tech || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="claim_nbr" label="Claim_Nbr" min-width="140" />
+        <el-table-column prop="claim_month" label="Claim_Month" width="120" />
+        <el-table-column prop="plant" label="Plant" width="120" />
+      </el-table>
+      <div class="pagination-bar">
+        <el-pagination
+          v-model:current-page="issuePage"
+          v-model:page-size="issuePageSize"
+          :total="issueTotal"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next"
+          @current-change="handleIssuePageChange"
+          @size-change="handleIssuePageSizeChange"
+        />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onActivated, watch, computed } from 'vue'
 import * as echarts from 'echarts'
 import { Monitor, TrendCharts, WarningFilled, MagicStick } from '@element-plus/icons-vue'
-import type { ModelCard as ModelCardData } from '@/api/ifir'
+import { getIfirModelIssueDetails, type ModelCard as ModelCardData, type IssueDetailRow } from '@/api/ifir'
 
 const props = defineProps<{
   model: string
   data: ModelCardData
+  timeRange: { start_month: string; end_month: string }
+  segments?: string[]
+  odms?: string[]
 }>()
 
 const chartRef = ref<HTMLElement>()
@@ -102,6 +140,15 @@ let chartInstance: echarts.ECharts | null = null
 const chartMode = ref<'yearly' | 'timeline'>('timeline')
 const detailVisible = ref(false)
 const detailData = ref({ month: '', value: 0 })
+
+const issueDialogVisible = ref(false)
+const issueRows = ref<IssueDetailRow[]>([])
+const issueLoading = ref(false)
+const issueTotal = ref(0)
+const issuePage = ref(1)
+const issuePageSize = ref(10)
+const currentIssue = ref('')
+const issueDialogTitle = computed(() => currentIssue.value ? `Issue 明细：${currentIssue.value}` : 'Issue 明细')
 
 // Top Issue Tab切换
 const topIssueTab = ref<'summary' | 'monthly'>('summary')
@@ -138,6 +185,57 @@ const formatPercent = (value: number) => {
 const formatSharePercent = (value: number) => {
   if (value === null || value === undefined) return '-'
   return `${(value * 100).toFixed(1)}%`
+}
+
+const formatIssueLabel = (row: { issue: string; count: number }) => `${row.issue} * ${row.count}`
+
+const openIssueDetails = async (issue: string) => {
+  if (!issue) return
+  currentIssue.value = issue
+  issuePage.value = 1
+  issueDialogVisible.value = true
+  await fetchIssueDetails()
+}
+
+const handleIssueRowClick = (row: { issue?: string }) => {
+  if (row?.issue) {
+    openIssueDetails(row.issue)
+  }
+}
+
+const fetchIssueDetails = async () => {
+  if (!currentIssue.value) return
+  issueLoading.value = true
+  try {
+    const result = await getIfirModelIssueDetails({
+      start_month: props.timeRange.start_month,
+      end_month: props.timeRange.end_month,
+      model: props.model,
+      issue: currentIssue.value,
+      segments: props.segments && props.segments.length ? props.segments : undefined,
+      odms: props.odms && props.odms.length ? props.odms : undefined,
+      page: issuePage.value,
+      page_size: issuePageSize.value
+    })
+    issueRows.value = result.items || []
+    issueTotal.value = result.total || 0
+  } catch {
+    issueRows.value = []
+    issueTotal.value = 0
+  } finally {
+    issueLoading.value = false
+  }
+}
+
+const handleIssuePageChange = async (page: number) => {
+  issuePage.value = page
+  await fetchIssueDetails()
+}
+
+const handleIssuePageSizeChange = async (size: number) => {
+  issuePageSize.value = size
+  issuePage.value = 1
+  await fetchIssueDetails()
 }
 
 const getYearlyData = () => {
@@ -232,6 +330,7 @@ const initChart = () => {
 }
 
 onMounted(() => initChart())
+onActivated(() => chartInstance?.resize())
 watch(() => props.data, () => initChart(), { deep: true })
 window.addEventListener('resize', () => chartInstance?.resize())
 </script>
@@ -254,4 +353,6 @@ window.addEventListener('resize', () => chartInstance?.resize())
 }
 .detail-content { p { margin: 12px 0; font-size: 14px; } }
 .month-selector { margin-bottom: 12px; }
+.issue-link { display: block; width: 100%; }
+.pagination-bar { margin-top: 12px; display: flex; justify-content: flex-end; }
 </style>

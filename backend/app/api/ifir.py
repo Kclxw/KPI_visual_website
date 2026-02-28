@@ -6,15 +6,17 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user
 from app.services.ifir_service import IfirService
 from app.schemas.ifir import (
     IfirOptionsResponse, IfirOptionsData,
     IfirOdmAnalyzeRequest, IfirOdmAnalyzeResponse,
     IfirSegmentAnalyzeRequest, IfirSegmentAnalyzeResponse,
-    IfirModelAnalyzeRequest, IfirModelAnalyzeResponse
+    IfirModelAnalyzeRequest, IfirModelAnalyzeResponse,
+    IfirModelIssueRequest, IfirModelIssueDetailResponse
 )
 
-router = APIRouter(prefix="/ifir", tags=["IFIR分析"])
+router = APIRouter(prefix="/ifir", tags=["IFIR分析"], dependencies=[Depends(get_current_user)])
 
 
 # ==================== Options API ====================
@@ -144,8 +146,7 @@ async def analyze_model(
     - **filters.models**: Model列表（必选）
     - **filters.segments**: Segment列表（可选）
     - **filters.odms**: ODM列表（可选）
-    - **view.trend_months**: 趋势月数，默认6
-    - **view.top_issue_n**: Top Issue数量，默认10
+    - **view.top_issue_n**: Top Issue数量，默认5
     """
     try:
         if not request.filters.models:
@@ -156,3 +157,26 @@ async def analyze_model(
         return IfirModelAnalyzeResponse(data=data)
     except Exception as e:
         return IfirModelAnalyzeResponse(code=500, message=str(e))
+
+
+@router.post("/model-analysis/issue-details", response_model=IfirModelIssueDetailResponse)
+async def model_issue_details(
+    request: IfirModelIssueRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    IFIR Model Issue明细查询
+
+    - **time_range**: 时间范围
+    - **filters.model**: Model（必选）
+    - **filters.issue**: Issue类型（必选）
+    - **filters.segments**: Segment列表（可选）
+    - **filters.odms**: ODM列表（可选）
+    - **pagination.page/page_size**: 分页参数
+    """
+    try:
+        service = IfirService(db)
+        data = service.get_model_issue_details(request)
+        return IfirModelIssueDetailResponse(data=data)
+    except Exception as e:
+        return IfirModelIssueDetailResponse(code=500, message=str(e))

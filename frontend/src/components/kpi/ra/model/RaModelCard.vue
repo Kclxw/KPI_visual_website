@@ -40,7 +40,11 @@
           <el-table-column prop="rank" label="排名" width="70" align="center">
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
-          <el-table-column prop="issue" label="问题类型" min-width="180" />
+          <el-table-column label="问题类型" min-width="180">
+            <template #default="{ row }">
+              <span class="issue-text">{{ row.issue }}</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="count" label="数量" width="100" align="right" />
           <el-table-column prop="share" label="占比" width="100"><template #default="{ row }">{{ formatSharePercent(row.share) }}</template></el-table-column>
         </el-table>
@@ -55,7 +59,11 @@
           <el-table-column prop="rank" label="排名" width="70" align="center">
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
-          <el-table-column prop="issue" label="问题类型" min-width="180" />
+          <el-table-column label="问题类型" min-width="180">
+            <template #default="{ row }">
+              <span class="issue-text">{{ row.issue }}</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="count" label="数量" width="100" align="right" />
           <el-table-column prop="share" label="占比" width="100"><template #default="{ row }">{{ formatSharePercent(row.share) }}</template></el-table-column>
         </el-table>
@@ -87,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onActivated, watch, computed } from 'vue'
 import * as echarts from 'echarts'
 import { Monitor, TrendCharts, WarningFilled, MagicStick } from '@element-plus/icons-vue'
 import type { ModelCard as ModelCardData } from '@/api/ra'
@@ -226,6 +234,7 @@ const initChart = () => {
 }
 
 onMounted(() => initChart())
+onActivated(() => chartInstance?.resize())
 watch(() => props.data, () => initChart(), { deep: true })
 window.addEventListener('resize', () => chartInstance?.resize())
 </script>
@@ -248,4 +257,5 @@ window.addEventListener('resize', () => chartInstance?.resize())
 }
 .detail-content { p { margin: 12px 0; font-size: 14px; } }
 .month-selector { margin-bottom: 12px; }
+.issue-text { display: block; width: 100%; }
 </style>

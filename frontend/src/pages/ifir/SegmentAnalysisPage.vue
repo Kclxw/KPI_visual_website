@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <h1>IFIR Segment分析</h1>
-      <p class="description">按Segment维度分析IFIR表现与趋势</p>
+      <p class="description">按 Segment 维度分析 IFIR 表现与趋势</p>
     </div>
     
     <!-- 筛选区 -->
@@ -119,7 +119,7 @@
     
     <!-- 结果区 -->
     <div class="result-area" v-else-if="showResult && analyzeResult">
-      <!-- Block D: 多Segment汇总对比 -->
+      <!-- Block D: 多 Segment 汇总对比 -->
       <SummaryBlockD
         v-if="blockDEntities.length > 1"
         entity-label="Segment"
@@ -151,7 +151,14 @@
             :key="card.segment"
             class="carousel-item"
           >
-            <SegmentCard :segment="card.segment" :data="card" />
+            <SegmentCard
+              :segment="card.segment"
+              :data="card"
+              :time-range="analyzeResult.meta.time_range"
+              :odms="selectedOdms"
+              v-model:top-odm-sort="topOdmSort"
+              v-model:top-model-sort="topModelSort"
+            />
           </div>
         </div>
       </div>
@@ -161,7 +168,7 @@
     <div class="result-area" v-else>
       <div class="empty-state">
         <el-icon><PieChart /></el-icon>
-        <p class="empty-text">请选择Segment并点击分析按钮</p>
+        <p class="empty-text">请选择 Segment 并点击分析按钮</p>
         <p class="empty-hint" v-if="!hasData">
           提示：请先在"数据上传"页面上传数据
         </p>
@@ -175,7 +182,7 @@ import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { Search, PieChart, Loading } from '@element-plus/icons-vue'
 import SegmentCard from '@/components/kpi/ifir/segment/SegmentCard.vue'
 import SummaryBlockD from '@/components/kpi/common/SummaryBlockD.vue'
-import { getIfirOptions, analyzeIfirSegment, type IfirOptions, type SegmentAnalyzeResponse } from '@/api/ifir'
+import { getIfirOptions, analyzeIfirSegment, type IfirOptions, type SegmentAnalyzeResponse, type TopSort } from '@/api/ifir'
 import { ElMessage } from 'element-plus'
 
 // 筛选条件
@@ -184,6 +191,8 @@ const selectedSegments = ref<string[]>([])
 const selectedOdms = ref<string[]>([])
 const selectedModels = ref<string[]>([])
 const tgtValue = ref(1500) // TGT 目标值 (DPPM)
+const topOdmSort = ref<TopSort>('claim')
+const topModelSort = ref<TopSort>('claim')
 
 // 选项数据
 const optionsLoading = ref(false)
@@ -269,10 +278,16 @@ watch([selectedSegments, selectedOdms, selectedModels], () => {
   }
 }, { deep: true })
 
+watch([topOdmSort, topModelSort], () => {
+  if (showResult.value && !analyzing.value) {
+    handleAnalyze()
+  }
+})
+
 // 分析
 const handleAnalyze = async () => {
   if (selectedSegments.value.length === 0) {
-    ElMessage.warning('请选择至少一个Segment')
+    ElMessage.warning('请选择至少一个 Segment')
     return
   }
   
@@ -291,6 +306,8 @@ const handleAnalyze = async () => {
       segments: selectedSegments.value,
       odms: selectedOdms.value.length > 0 ? selectedOdms.value : undefined,
       models: selectedModels.value.length > 0 ? selectedModels.value : undefined,
+      top_odm_sort: topOdmSort.value,
+      top_model_sort: topModelSort.value,
     })
     
     analyzeResult.value = result

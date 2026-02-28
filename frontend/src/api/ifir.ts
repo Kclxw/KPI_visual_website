@@ -18,8 +18,8 @@ export interface IfirOptions {
 export interface TrendPoint {
   month: string
   ifir: number
-  box_claim: number
-  box_mm: number
+  box_claim?: number
+  box_mm?: number
 }
 
 // Top Model
@@ -29,6 +29,7 @@ export interface TopModel {
   ifir: number
   box_claim: number
   box_mm: number
+  top_issues?: TopIssue[]
 }
 
 // Top ODM
@@ -43,9 +44,27 @@ export interface TopOdm {
 // Top Issue
 export interface TopIssue {
   rank: number
-  fault_category: string
+  issue: string
   count: number
-  percentage: number
+  share?: number
+}
+
+export type TopSort = 'claim' | 'ifir'
+
+export interface IssueDetailRow {
+  model: string
+  fault_category: string
+  problem_descr_by_tech?: string
+  claim_nbr: string
+  claim_month: string
+  plant?: string
+}
+
+export interface IssueDetailResponse {
+  total: number
+  page: number
+  page_size: number
+  items: IssueDetailRow[]
 }
 
 // 月度明细
@@ -198,6 +217,7 @@ export async function analyzeIfirOdm(params: {
   odms: string[]
   segments?: string[]
   models?: string[]
+  top_model_sort?: TopSort
 }): Promise<OdmAnalyzeResponse> {
   // 转换为后端期望的格式
   const request = {
@@ -209,6 +229,9 @@ export async function analyzeIfirOdm(params: {
       odms: params.odms,
       segments: params.segments,
       models: params.models
+    },
+    view: {
+      top_model_sort: params.top_model_sort
     }
   }
   const response = await apiClient.post('/ifir/odm-analysis/analyze', request)
@@ -224,6 +247,8 @@ export async function analyzeIfirSegment(params: {
   segments: string[]
   odms?: string[]
   models?: string[]
+  top_odm_sort?: TopSort
+  top_model_sort?: TopSort
 }): Promise<SegmentAnalyzeResponse> {
   const request = {
     time_range: {
@@ -234,6 +259,10 @@ export async function analyzeIfirSegment(params: {
       segments: params.segments,
       odms: params.odms,
       models: params.models
+    },
+    view: {
+      top_odm_sort: params.top_odm_sort,
+      top_model_sort: params.top_model_sort
     }
   }
   const response = await apiClient.post('/ifir/segment-analysis/analyze', request)
@@ -249,7 +278,6 @@ export async function analyzeIfirModel(params: {
   models: string[]
   segments?: string[]
   odms?: string[]
-  trend_window?: number
 }): Promise<ModelAnalyzeResponse> {
   const request = {
     time_range: {
@@ -260,9 +288,41 @@ export async function analyzeIfirModel(params: {
       models: params.models,
       segments: params.segments,
       odms: params.odms
-    },
-    view: params.trend_window ? { trend_months: params.trend_window } : undefined
+    }
   }
   const response = await apiClient.post('/ifir/model-analysis/analyze', request)
+  return response.data
+}
+
+/**
+ * IFIR Model Issue 明细
+ */
+export async function getIfirModelIssueDetails(params: {
+  start_month: string
+  end_month: string
+  model: string
+  issue: string
+  segments?: string[]
+  odms?: string[]
+  page?: number
+  page_size?: number
+}): Promise<IssueDetailResponse> {
+  const request = {
+    time_range: {
+      start_month: params.start_month,
+      end_month: params.end_month
+    },
+    filters: {
+      model: params.model,
+      issue: params.issue,
+      segments: params.segments,
+      odms: params.odms
+    },
+    pagination: {
+      page: params.page ?? 1,
+      page_size: params.page_size ?? 10
+    }
+  }
+  const response = await apiClient.post('/ifir/model-analysis/issue-details', request)
   return response.data
 }

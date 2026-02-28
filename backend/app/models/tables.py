@@ -2,7 +2,7 @@
 数据库表模型
 基于 scripts/db/init.sql 和 plan/数据库/*.md 设计
 """
-from sqlalchemy import Column, BigInteger, Integer, SmallInteger, String, Text, Date, DateTime, Enum, func
+from sqlalchemy import Column, BigInteger, Integer, SmallInteger, String, Text, Date, DateTime, Enum, Boolean, func
 from app.core.database import Base
 
 
@@ -245,3 +245,19 @@ class UploadTask(Base):
     created_at = Column(DateTime, server_default=func.now())
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
+
+
+class User(Base):
+    """系统用户表"""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), unique=True, nullable=False, comment="登录用户名")
+    display_name = Column(String(100), nullable=False, comment="显示名称")
+    email = Column(String(100), unique=True, nullable=True, comment="邮箱")
+    hashed_password = Column(String(255), nullable=False, comment="bcrypt哈希密码")
+    role = Column(Enum("admin", "uploader", "viewer"), nullable=False, default="viewer")
+    is_active = Column(Boolean, nullable=False, default=True, comment="是否启用")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    last_login = Column(DateTime, nullable=True)

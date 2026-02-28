@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db, SessionLocal
+from app.core.security import require_uploader
 from app.models.tables import UploadTask
 from app.schemas.upload import UploadResponse, UploadTaskStatus, FileInfo
 from app.services.etl_service import EtlService
@@ -19,7 +20,7 @@ from app.services.etl_service import EtlService
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/upload", tags=["文件上传"])
+router = APIRouter(prefix="/upload", tags=["文件上传"], dependencies=[Depends(require_uploader)])
 
 # 上传文件存储目录 - 使用绝对路径
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "uploads")

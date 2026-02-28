@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user
 from app.services.ra_service import RaService
 from app.schemas.ra import (
     RaOptionsResponse,
@@ -14,7 +15,7 @@ from app.schemas.ra import (
     RaModelAnalyzeRequest, RaModelAnalyzeResponse
 )
 
-router = APIRouter(prefix="/ra", tags=["RA分析"])
+router = APIRouter(prefix="/ra", tags=["RA分析"], dependencies=[Depends(get_current_user)])
 
 
 # ==================== Options API ====================

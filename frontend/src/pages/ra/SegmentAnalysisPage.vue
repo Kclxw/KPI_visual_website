@@ -131,7 +131,12 @@
             :key="card.segment"
             class="carousel-item"
           >
-            <RaSegmentCard :segment="card.segment" :data="card" />
+            <RaSegmentCard
+              :segment="card.segment"
+              :data="card"
+              v-model:top-odm-sort="topOdmSort"
+              v-model:top-model-sort="topModelSort"
+            />
           </div>
         </div>
       </div>
@@ -155,14 +160,16 @@ import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { Search, PieChart, Loading } from '@element-plus/icons-vue'
 import RaSegmentCard from '@/components/kpi/ra/segment/RaSegmentCard.vue'
 import SummaryBlockD from '@/components/kpi/common/SummaryBlockD.vue'
-import { getRaOptions, analyzeRaSegment, type RaOptions, type SegmentAnalyzeResponse } from '@/api/ra'
+import { getRaOptions, analyzeRaSegment, type RaOptions, type SegmentAnalyzeResponse, type TopSort } from '@/api/ra'
 import { ElMessage } from 'element-plus'
 
 // 筛选条件
 const dateRange = ref<[string, string] | null>(null)
 const selectedSegments = ref<string[]>([])
 const selectedOdms = ref<string[]>([])
-const tgtValue = ref(1500) // TGT 目标值 (DPPM)
+const tgtValue = ref(1500) // TGT ??? (DPPM)
+const topOdmSort = ref<TopSort>('claim')
+const topModelSort = ref<TopSort>('claim')
 
 // 选项数据
 const optionsLoading = ref(false)
@@ -245,6 +252,12 @@ watch([selectedSegments, selectedOdms], () => {
   }
 }, { deep: true })
 
+watch([topOdmSort, topModelSort], () => {
+  if (showResult.value && !analyzing.value) {
+    handleAnalyze()
+  }
+})
+
 // 分析
 const handleAnalyze = async () => {
   if (selectedSegments.value.length === 0) {
@@ -266,6 +279,8 @@ const handleAnalyze = async () => {
       end_month: dateRange.value[1],
       segments: selectedSegments.value,
       odms: selectedOdms.value.length > 0 ? selectedOdms.value : undefined,
+      top_odm_sort: topOdmSort.value,
+      top_model_sort: topModelSort.value,
     })
     
     analyzeResult.value = result

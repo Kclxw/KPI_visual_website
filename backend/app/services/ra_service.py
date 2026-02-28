@@ -48,6 +48,18 @@ class RaService:
         if total == 0:
             return 0.0
         return round(value / total, 4)
+
+    def _sort_top_items(self, items: List[dict], sort_key: str) -> None:
+        if sort_key == "claim":
+            items.sort(
+                key=lambda x: (x.get("ra_claim") or 0, x.get("ra") or 0),
+                reverse=True
+            )
+        else:
+            items.sort(
+                key=lambda x: (x.get("ra") or 0, x.get("ra_claim") or 0),
+                reverse=True
+            )
     
     # ==================== Options API ====================
     
@@ -98,6 +110,7 @@ class RaService:
             month_min=month_min,
             month_max=month_max,
             data_as_of=month_max,
+            time_range={"min_month": month_min, "max_month": month_max},
             segments=segments_list,
             odms=odms_list,
             models=models_list
@@ -111,6 +124,7 @@ class RaService:
         end_date = self._parse_month(request.time_range.end_month)
         view = request.view
         top_model_n = view.top_model_n if view else 10
+        top_model_sort = view.top_model_sort if view else "claim"
         
         odms = request.filters.odms
         segments = request.filters.segments
@@ -198,7 +212,7 @@ class RaService:
                 {"model": r.model, "ra": self._calc_ra(r.ra_claim_sum, r.ra_mm_sum), "ra_claim": r.ra_claim_sum, "ra_mm": r.ra_mm_sum}
                 for r in top_data
             ]
-            top_models_raw.sort(key=lambda x: x["ra"], reverse=True)
+            self._sort_top_items(top_models_raw, top_model_sort)
             
             top_models = [
                 RaTopModelRow(rank=i+1, **item)
@@ -241,7 +255,7 @@ class RaService:
             monthly_top_models = []
             for month_str in sorted(monthly_dict.keys()):
                 items = monthly_dict[month_str]
-                items.sort(key=lambda x: x["ra"], reverse=True)
+                self._sort_top_items(items, top_model_sort)
                 monthly_top_models.append(RaMonthlyTopModels(
                     month=month_str,
                     items=[RaTopModelRow(rank=i+1, **item) for i, item in enumerate(items[:top_model_n])]
@@ -272,6 +286,8 @@ class RaService:
         end_date = self._parse_month(request.time_range.end_month)
         view = request.view
         top_n = view.top_n if view else 10
+        top_odm_sort = view.top_odm_sort if view else "claim"
+        top_model_sort = view.top_model_sort if view else "claim"
         
         segments = request.filters.segments
         odms = request.filters.odms
@@ -358,7 +374,7 @@ class RaService:
                 {"odm": r.supplier_new, "ra": self._calc_ra(r.ra_claim_sum, r.ra_mm_sum), "ra_claim": r.ra_claim_sum, "ra_mm": r.ra_mm_sum}
                 for r in odm_data
             ]
-            odm_raw.sort(key=lambda x: x["ra"], reverse=True)
+            self._sort_top_items(odm_raw, top_odm_sort)
             top_odms = [RaTopOdmRow(rank=i+1, **item) for i, item in enumerate(odm_raw[:top_n])]
             
             # Block B - Top Model (汇总)
@@ -382,7 +398,7 @@ class RaService:
                 {"model": r.model, "ra": self._calc_ra(r.ra_claim_sum, r.ra_mm_sum), "ra_claim": r.ra_claim_sum, "ra_mm": r.ra_mm_sum}
                 for r in model_data
             ]
-            model_raw.sort(key=lambda x: x["ra"], reverse=True)
+            self._sort_top_items(model_raw, top_model_sort)
             top_models = [RaTopModelRow(rank=i+1, **item) for i, item in enumerate(model_raw[:top_n])]
             
             # 月度明细 - Top ODM
@@ -421,7 +437,7 @@ class RaService:
             monthly_top_odms = []
             for month_str in sorted(monthly_odm_dict.keys()):
                 items = monthly_odm_dict[month_str]
-                items.sort(key=lambda x: x["ra"], reverse=True)
+                self._sort_top_items(items, top_odm_sort)
                 monthly_top_odms.append(RaMonthlyTopOdms(
                     month=month_str,
                     items=[RaTopOdmRow(rank=i+1, **item) for i, item in enumerate(items[:top_n])]
@@ -463,7 +479,7 @@ class RaService:
             monthly_top_models = []
             for month_str in sorted(monthly_model_dict.keys()):
                 items = monthly_model_dict[month_str]
-                items.sort(key=lambda x: x["ra"], reverse=True)
+                self._sort_top_items(items, top_model_sort)
                 monthly_top_models.append(RaMonthlyTopModels(
                     month=month_str,
                     items=[RaTopModelRow(rank=i+1, **item) for i, item in enumerate(items[:top_n])]
@@ -498,7 +514,10 @@ class RaService:
         top_issue_n = view.top_issue_n if view else 10
         
         models_list = request.filters.models
-        segment = request.filters.segment
+        segments = list(request.filters.segments or [])
+        if request.filters.segment and request.filters.segment not in segments:
+            segments.append(request.filters.segment)
+        segments = segments or None
         odms = request.filters.odms
         
         # 获取ODM对应的plant列表
@@ -522,8 +541,8 @@ class RaService:
                 FactRaRow.claim_month <= end_date,
                 FactRaRow.model.in_(models_list)
             )
-            if segment:
-                pie_query = pie_query.filter(FactRaRow.segment == segment)
+            if segments:
+                pie_query = pie_query.filter(FactRaRow.segment.in_(segments))
             if odms:
                 pie_query = pie_query.filter(FactRaRow.supplier_new.in_(odms))
             
@@ -555,8 +574,8 @@ class RaService:
                 FactRaRow.claim_month <= end_date,
                 FactRaRow.model == model
             )
-            if segment:
-                trend_query = trend_query.filter(FactRaRow.segment == segment)
+            if segments:
+                trend_query = trend_query.filter(FactRaRow.segment.in_(segments))
             if odms:
                 trend_query = trend_query.filter(FactRaRow.supplier_new.in_(odms))
             
@@ -580,8 +599,8 @@ class RaService:
                 FactRaDetail.model == model,
                 FactRaDetail.fault_category.isnot(None)
             )
-            if segment:
-                issue_query = issue_query.filter(FactRaDetail.segment == segment)
+            if segments:
+                issue_query = issue_query.filter(FactRaDetail.segment.in_(segments))
             if plant_list:
                 issue_query = issue_query.filter(FactRaDetail.plant.in_(plant_list))
             
@@ -609,8 +628,8 @@ class RaService:
                 FactRaDetail.model == model,
                 FactRaDetail.fault_category.isnot(None)
             )
-            if segment:
-                monthly_issue_query = monthly_issue_query.filter(FactRaDetail.segment == segment)
+            if segments:
+                monthly_issue_query = monthly_issue_query.filter(FactRaDetail.segment.in_(segments))
             if plant_list:
                 monthly_issue_query = monthly_issue_query.filter(FactRaDetail.plant.in_(plant_list))
             
