@@ -6,7 +6,7 @@ import { ElMessage } from 'element-plus'
 
 // 创建 axios 实例
 const apiClient: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: '/api',  // 使用相对路径，通过Nginx代理
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

@@ -4,6 +4,7 @@
 import os
 from functools import lru_cache
 from typing import List
+from urllib.parse import quote_plus
 
 # 兼容 Pydantic v1 和 v2
 try:
@@ -33,11 +34,14 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URL(self) -> str:
         """构建数据库连接URL"""
-        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
+        # URL编码密码中的特殊字符
+        password = quote_plus(self.DB_PASSWORD) if self.DB_PASSWORD else ""
+        return f"mysql+pymysql://{self.DB_USER}:{password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
     
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # 忽略额外的环境变量
 
 
 @lru_cache()
