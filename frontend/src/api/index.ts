@@ -6,7 +6,7 @@ import { ElMessage } from 'element-plus'
 import { getActivePinia } from 'pinia'
 
 const apiClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: '/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
