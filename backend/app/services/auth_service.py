@@ -1,4 +1,4 @@
-﻿"""
+"""
 Authentication & user management service.
 """
 from datetime import datetime

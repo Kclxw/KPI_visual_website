@@ -134,11 +134,20 @@
             <RaSegmentCard
               :segment="card.segment"
               :data="card"
+              :time-range="{ start_month: dateRange![0], end_month: dateRange![1] }"
+              :odms="selectedOdms.length ? selectedOdms : undefined"
               v-model:top-odm-sort="topOdmSort"
               v-model:top-model-sort="topModelSort"
             />
           </div>
         </div>
+      </div>
+
+      <div class="report-action">
+        <el-button type="success" :icon="Download" :loading="exporting" size="large" @click="handleExportReport">
+          {{ exporting ? '正在生成报告...' : '生成报告' }}
+        </el-button>
+        <span class="export-hint">导出Excel报告（含趋势图、排名表格及Detail明细数据）</span>
       </div>
     </div>
     
@@ -157,17 +166,18 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
-import { Search, PieChart, Loading } from '@element-plus/icons-vue'
+import { Search, PieChart, Loading, Download } from '@element-plus/icons-vue'
 import RaSegmentCard from '@/components/kpi/ra/segment/RaSegmentCard.vue'
 import SummaryBlockD from '@/components/kpi/common/SummaryBlockD.vue'
-import { getRaOptions, analyzeRaSegment, type RaOptions, type SegmentAnalyzeResponse, type TopSort } from '@/api/ra'
+import { getRaOptions, analyzeRaSegment, downloadRaSegmentReport, type RaOptions, type SegmentAnalyzeResponse, type TopSort } from '@/api/ra'
+import { downloadBlob, buildReportFilename, ensureReportBlobOrThrow } from '@/utils/download'
 import { ElMessage } from 'element-plus'
 
 // 筛选条件
 const dateRange = ref<[string, string] | null>(null)
 const selectedSegments = ref<string[]>([])
 const selectedOdms = ref<string[]>([])
-const tgtValue = ref(1500) // TGT ??? (DPPM)
+const tgtValue = ref(1500) // TGT 目标值 (DPPM)
 const topOdmSort = ref<TopSort>('claim')
 const topModelSort = ref<TopSort>('claim')
 
@@ -298,6 +308,33 @@ const handleAnalyze = async () => {
   }
 }
 
+// 报告导出
+const exporting = ref(false)
+const handleExportReport = async () => {
+  if (!dateRange.value || selectedSegments.value.length === 0) return
+  exporting.value = true
+  try {
+    const { blob, filename } = await downloadRaSegmentReport({
+      start_month: dateRange.value[0],
+      end_month: dateRange.value[1],
+      segments: selectedSegments.value,
+      odms: selectedOdms.value.length > 0 ? selectedOdms.value : undefined,
+      top_odm_sort: topOdmSort.value,
+      top_model_sort: topModelSort.value,
+      tgt: tgtValue.value,
+    })
+    await ensureReportBlobOrThrow(blob)
+    const fallback = buildReportFilename('RA', 'Segment', selectedSegments.value, dateRange.value)
+    downloadBlob(blob, filename || fallback)
+    ElMessage.success('报告生成成功')
+  } catch (error: any) {
+    console.error('报告生成失败:', error)
+    ElMessage.error(error?.message || '报告生成失败，请重试')
+  } finally {
+    exporting.value = false
+  }
+}
+
 onMounted(() => {
   loadOptions(true)
 })
@@ -342,5 +379,20 @@ onMounted(() => {
 .carousel-item {
   flex-shrink: 0;
   width: 100%;
+}
+
+.report-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 0;
+  margin-top: 20px;
+  border-top: 1px solid var(--el-border-color-lighter, #e4e7ed);
+
+  .export-hint {
+    font-size: 13px;
+    color: var(--el-text-color-secondary, #909399);
+  }
 }
 </style>

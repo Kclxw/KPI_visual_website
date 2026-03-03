@@ -1,8 +1,11 @@
 """
 RA分析API路由
 """
+from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from urllib.parse import quote
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -12,7 +15,9 @@ from app.schemas.ra import (
     RaOptionsResponse,
     RaOdmAnalyzeRequest, RaOdmAnalyzeResponse,
     RaSegmentAnalyzeRequest, RaSegmentAnalyzeResponse,
-    RaModelAnalyzeRequest, RaModelAnalyzeResponse
+    RaModelAnalyzeRequest, RaModelAnalyzeResponse,
+    RaModelIssueRequest, RaModelIssueDetailResponse,
+    RaModelReportRequest, RaOdmReportRequest, RaSegmentReportRequest,
 )
 
 router = APIRouter(prefix="/ra", tags=["RA分析"], dependencies=[Depends(get_current_user)])
@@ -130,3 +135,92 @@ async def analyze_model(
         return RaModelAnalyzeResponse(data=data)
     except Exception as e:
         return RaModelAnalyzeResponse(code=500, message=str(e))
+
+
+@router.post("/model-analysis/issue-details", response_model=RaModelIssueDetailResponse)
+async def ra_model_issue_details(
+    request: RaModelIssueRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    RA Model Issue明细查询
+
+    - **filters.model**: Model（必选）
+    - **filters.issue**: Issue类型（必选）
+    - **filters.segments/odms**: 可选过滤
+    - **pagination.page/page_size**: 分页参数
+    """
+    try:
+        service = RaService(db)
+        data = service.get_model_issue_details(request)
+        return RaModelIssueDetailResponse(data=data)
+    except Exception as e:
+        return RaModelIssueDetailResponse(code=500, message=str(e))
+
+
+# ==================== Report API ====================
+
+EXCEL_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@router.post("/report/model")
+async def generate_ra_model_report(
+    request: RaModelReportRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """生成 RA Model 分析报告 Excel"""
+    try:
+        service = RaService(db)
+        file_path, filename = service.generate_model_report(request)
+        path = Path(file_path)
+        background_tasks.add_task(path.unlink, missing_ok=True)
+        return FileResponse(
+            path=path, media_type=EXCEL_MEDIA,
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+            background=background_tasks,
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"code": 500, "message": str(e)})
+
+
+@router.post("/report/odm")
+async def generate_ra_odm_report(
+    request: RaOdmReportRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """生成 RA ODM 分析报告 Excel"""
+    try:
+        service = RaService(db)
+        file_path, filename = service.generate_odm_report(request)
+        path = Path(file_path)
+        background_tasks.add_task(path.unlink, missing_ok=True)
+        return FileResponse(
+            path=path, media_type=EXCEL_MEDIA,
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+            background=background_tasks,
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"code": 500, "message": str(e)})
+
+
+@router.post("/report/segment")
+async def generate_ra_segment_report(
+    request: RaSegmentReportRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """生成 RA Segment 分析报告 Excel"""
+    try:
+        service = RaService(db)
+        file_path, filename = service.generate_segment_report(request)
+        path = Path(file_path)
+        background_tasks.add_task(path.unlink, missing_ok=True)
+        return FileResponse(
+            path=path, media_type=EXCEL_MEDIA,
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+            background=background_tasks,
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"code": 500, "message": str(e)})

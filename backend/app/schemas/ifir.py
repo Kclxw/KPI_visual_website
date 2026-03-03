@@ -1,4 +1,4 @@
-﻿"""
+"""
 IFIR相关Schema定义
 """
 from typing import Optional, List, Union, Literal
@@ -310,6 +310,31 @@ class IfirModelIssueDetailResponse(BaseModel):
     code: int = 0
     message: str = "success"
     data: Optional[IfirModelIssueDetailData] = None
+
+
+# ==================== Report ====================
+
+class IfirModelReportRequest(BaseModel):
+    """IFIR Model分析报告请求"""
+    time_range: TimeRange
+    filters: IfirModelFilters
+    tgt: Optional[int] = 1500
+
+
+class IfirOdmReportRequest(BaseModel):
+    """IFIR ODM分析报告请求"""
+    time_range: TimeRange
+    filters: IfirOdmFilters
+    view: Optional[IfirOdmViewConfig] = None
+    tgt: Optional[int] = 1500
+
+
+class IfirSegmentReportRequest(BaseModel):
+    """IFIR Segment分析报告请求"""
+    time_range: TimeRange
+    filters: IfirSegmentFilters
+    view: Optional[IfirSegmentViewConfig] = None
+    tgt: Optional[int] = 1500
 
 
 # ==================== 通用别名 ====================

@@ -298,6 +298,8 @@ class EtlService:
                 
                 records = []
                 for _, row in batch_df.iterrows():
+                    segment2_value = self._safe_str(row, "segment2")
+                    segment_value = self._safe_str(row, "segment") or segment2_value
                     records.append({
                         "claim_nbr": row["claim_nbr"],
                         "claim_month": pd.to_datetime(row.get("claim_month")).date() if pd.notna(row.get("claim_month")) else None,
@@ -308,8 +310,8 @@ class EtlService:
                         "financial_region": self._safe_str(row, "financial_region"),
                         "plant": self._safe_str(row, "plant"),
                         "brand": self._safe_str(row, "brand"),
-                        "segment": self._safe_str(row, "segment"),
-                        "segment2": self._safe_str(row, "segment2"),
+                        "segment": segment_value,
+                        "segment2": segment2_value,
                         "style": self._safe_str(row, "style"),
                         "series": self._safe_str(row, "series"),
                         "model": self._safe_str(row, "model"),
@@ -554,6 +556,8 @@ class EtlService:
                 
                 records = []
                 for _, row in batch_df.iterrows():
+                    segment2_value = self._safe_str(row, "segment2")
+                    segment_value = self._safe_str(row, "segment") or segment2_value
                     records.append({
                         "claim_nbr": row["claim_nbr"],
                         "claim_month": pd.to_datetime(row.get("claim_month")).date() if pd.notna(row.get("claim_month")) else None,
@@ -561,8 +565,8 @@ class EtlService:
                         "financial_region": self._safe_str(row, "financial_region"),
                         "plant": self._safe_str(row, "plant"),
                         "brand": self._safe_str(row, "brand"),
-                        "segment": self._safe_str(row, "segment"),
-                        "segment2": self._safe_str(row, "segment2"),
+                        "segment": segment_value,
+                        "segment2": segment2_value,
                         "style": self._safe_str(row, "style"),
                         "series": self._safe_str(row, "series"),
                         "model": self._safe_str(row, "model"),

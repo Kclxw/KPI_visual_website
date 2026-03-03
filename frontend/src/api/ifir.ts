@@ -294,6 +294,85 @@ export async function analyzeIfirModel(params: {
   return response.data
 }
 
+// ==================== Report Download ====================
+
+export interface ReportDownloadResult {
+  blob: Blob
+  filename?: string
+}
+
+function _getFilename(headers: Record<string, string>): string | undefined {
+  const cd = headers['content-disposition']
+  if (!cd) return undefined
+  const m = cd.match(/filename\*=UTF-8''([^;]+)/i)
+  if (m?.[1]) return decodeURIComponent(m[1])
+  const m2 = cd.match(/filename="?([^";]+)"?/i)
+  return m2?.[1]
+}
+
+export async function downloadIfirModelReport(params: {
+  start_month: string
+  end_month: string
+  models: string[]
+  segments?: string[]
+  odms?: string[]
+  tgt?: number
+}): Promise<ReportDownloadResult> {
+  const request = {
+    time_range: { start_month: params.start_month, end_month: params.end_month },
+    filters: { models: params.models, segments: params.segments, odms: params.odms },
+    tgt: params.tgt,
+  }
+  const response = await apiClient.post('/ifir/report/model', request, {
+    responseType: 'blob', timeout: 120000,
+  })
+  return { blob: response.data, filename: _getFilename(response.headers as any) }
+}
+
+export async function downloadIfirOdmReport(params: {
+  start_month: string
+  end_month: string
+  odms: string[]
+  segments?: string[]
+  models?: string[]
+  top_model_sort?: TopSort
+  tgt?: number
+}): Promise<ReportDownloadResult> {
+  const request = {
+    time_range: { start_month: params.start_month, end_month: params.end_month },
+    filters: { odms: params.odms, segments: params.segments, models: params.models },
+    view: { top_model_sort: params.top_model_sort },
+    tgt: params.tgt,
+  }
+  const response = await apiClient.post('/ifir/report/odm', request, {
+    responseType: 'blob', timeout: 120000,
+  })
+  return { blob: response.data, filename: _getFilename(response.headers as any) }
+}
+
+export async function downloadIfirSegmentReport(params: {
+  start_month: string
+  end_month: string
+  segments: string[]
+  odms?: string[]
+  models?: string[]
+  top_odm_sort?: TopSort
+  top_model_sort?: TopSort
+  tgt?: number
+}): Promise<ReportDownloadResult> {
+  const request = {
+    time_range: { start_month: params.start_month, end_month: params.end_month },
+    filters: { segments: params.segments, odms: params.odms, models: params.models },
+    view: { top_odm_sort: params.top_odm_sort, top_model_sort: params.top_model_sort },
+    tgt: params.tgt,
+  }
+  const response = await apiClient.post('/ifir/report/segment', request, {
+    responseType: 'blob', timeout: 120000,
+  })
+  return { blob: response.data, filename: _getFilename(response.headers as any) }
+}
+
+
 /**
  * IFIR Model Issue 明细
  */
