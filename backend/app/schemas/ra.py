@@ -1,4 +1,4 @@
-﻿"""
+"""
 RA相关Schema定义
 """
 from typing import Optional, List, Literal
@@ -55,6 +55,14 @@ class RaTrendPoint(BaseModel):
     ra: float
 
 
+class RaTopIssueRow(BaseModel):
+    """Top Issue数据行"""
+    rank: int
+    issue: str
+    count: int
+    share: Optional[float] = None
+
+
 class RaTopModelRow(BaseModel):
     """Top Model数据行"""
     rank: int
@@ -62,6 +70,7 @@ class RaTopModelRow(BaseModel):
     ra: float
     ra_claim: Optional[int] = None
     ra_mm: Optional[int] = None
+    top_issues: Optional[List[RaTopIssueRow]] = None
 
 
 class RaMonthlyTopModels(BaseModel):
@@ -213,14 +222,6 @@ class RaModelAnalyzeRequest(BaseModel):
     view: Optional[RaModelViewConfig] = None
 
 
-class RaTopIssueRow(BaseModel):
-    """Top Issue数据行"""
-    rank: int
-    issue: str
-    count: int
-    share: Optional[float] = None
-
-
 class RaMonthlyTopIssues(BaseModel):
     """月度Top Issue明细"""
     month: str
@@ -264,3 +265,75 @@ class RaModelAnalyzeResponse(BaseModel):
     data: Optional[RaModelAnalyzeData] = None
 
 
+# ==================== Model Issue Details ====================
+
+# ==================== Report ====================
+
+class RaModelReportRequest(BaseModel):
+    """RA Model分析报告请求"""
+    time_range: TimeRange
+    filters: RaModelFilters
+    tgt: Optional[int] = 1500
+
+
+class RaOdmReportRequest(BaseModel):
+    """RA ODM分析报告请求"""
+    time_range: TimeRange
+    filters: RaOdmFilters
+    view: Optional[RaOdmViewConfig] = None
+    tgt: Optional[int] = 1500
+
+
+class RaSegmentReportRequest(BaseModel):
+    """RA Segment分析报告请求"""
+    time_range: TimeRange
+    filters: RaSegmentFilters
+    view: Optional[RaSegmentViewConfig] = None
+    tgt: Optional[int] = 1500
+
+
+class RaModelIssueFilters(BaseModel):
+    """RA Model Issue明细筛选条件"""
+    model: str
+    issue: str
+    month: Optional[str] = None
+    segments: Optional[List[str]] = None
+    odms: Optional[List[str]] = None
+
+
+class RaModelIssuePagination(BaseModel):
+    """分页参数"""
+    page: int = 1
+    page_size: int = 10
+
+
+class RaModelIssueRequest(BaseModel):
+    """RA Model Issue明细请求"""
+    time_range: TimeRange
+    filters: RaModelIssueFilters
+    pagination: Optional[RaModelIssuePagination] = None
+
+
+class RaModelIssueDetailRow(BaseModel):
+    """RA Model Issue明细行"""
+    model: str
+    fault_category: str
+    problem_descr_by_tech: Optional[str] = None
+    claim_nbr: str
+    claim_month: str
+    plant: Optional[str] = None
+
+
+class RaModelIssueDetailData(BaseModel):
+    """RA Model Issue明细响应数据"""
+    total: int
+    page: int
+    page_size: int
+    items: List[RaModelIssueDetailRow]
+
+
+class RaModelIssueDetailResponse(BaseModel):
+    """RA Model Issue明细响应"""
+    code: int = 0
+    message: str = "success"
+    data: Optional[RaModelIssueDetailData] = None

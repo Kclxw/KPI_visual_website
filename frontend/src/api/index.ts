@@ -29,6 +29,12 @@ apiClient.interceptors.request.use(async (config) => {
 // 响应拦截器
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
+    const isBlobResponse =
+      response.config.responseType === 'blob' || response.data instanceof Blob
+    if (isBlobResponse) {
+      return response
+    }
+
     const { data } = response
     if (data.code !== 0) {
       ElMessage.error(data.message || '请求失败')
@@ -38,6 +44,22 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const status = error.response?.status
+    const isBlobResponse =
+      error.response?.config?.responseType === 'blob' ||
+      error.response?.data instanceof Blob
+
+    if (isBlobResponse && error.response) {
+      if (status === 401) {
+        const pinia = getActivePinia()
+        if (pinia) {
+          const { useAuthStore } = await import('@/stores/auth')
+          const authStore = useAuthStore(pinia)
+          authStore.logout()
+        }
+      }
+      return error.response
+    }
+
     const message = error.response?.data?.message || error.message || '网络错误'
     if (status === 401) {
       const pinia = getActivePinia()

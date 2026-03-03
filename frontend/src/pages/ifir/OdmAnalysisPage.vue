@@ -163,6 +163,13 @@
           </div>
         </div>
       </div>
+
+      <div class="report-action">
+        <el-button type="success" :icon="Download" :loading="exporting" size="large" @click="handleExportReport">
+          {{ exporting ? '正在生成报告...' : '生成报告' }}
+        </el-button>
+        <span class="export-hint">导出Excel报告（含趋势图、排名表格及Detail明细数据）</span>
+      </div>
     </div>
     
     <!-- 空态 -->
@@ -180,10 +187,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
-import { Search, DataAnalysis, Loading } from '@element-plus/icons-vue'
+import { Search, DataAnalysis, Loading, Download } from '@element-plus/icons-vue'
 import OdmCard from '@/components/kpi/ifir/odm/OdmCard.vue'
 import SummaryBlockD from '@/components/kpi/common/SummaryBlockD.vue'
-import { getIfirOptions, analyzeIfirOdm, type IfirOptions, type OdmAnalyzeResponse, type TopSort } from '@/api/ifir'
+import { getIfirOptions, analyzeIfirOdm, downloadIfirOdmReport, type IfirOptions, type OdmAnalyzeResponse, type TopSort } from '@/api/ifir'
+import { downloadBlob, buildReportFilename, ensureReportBlobOrThrow } from '@/utils/download'
 import { ElMessage } from 'element-plus'
 
 // 筛选条件
@@ -191,7 +199,7 @@ const dateRange = ref<[string, string] | null>(null)
 const selectedOdms = ref<string[]>([])
 const selectedSegments = ref<string[]>([])
 const selectedModels = ref<string[]>([])
-const tgtValue = ref(1500) // TGT ??? (DPPM)
+const tgtValue = ref(1500) // TGT 目标值 (DPPM)
 const topModelSort = ref<TopSort>('claim')
 
 // 选项数据
@@ -323,6 +331,33 @@ const handleAnalyze = async () => {
   }
 }
 
+// 报告导出
+const exporting = ref(false)
+const handleExportReport = async () => {
+  if (!dateRange.value || selectedOdms.value.length === 0) return
+  exporting.value = true
+  try {
+    const { blob, filename } = await downloadIfirOdmReport({
+      start_month: dateRange.value[0],
+      end_month: dateRange.value[1],
+      odms: selectedOdms.value,
+      segments: selectedSegments.value.length > 0 ? selectedSegments.value : undefined,
+      models: selectedModels.value.length > 0 ? selectedModels.value : undefined,
+      top_model_sort: topModelSort.value,
+      tgt: tgtValue.value,
+    })
+    await ensureReportBlobOrThrow(blob)
+    const fallback = buildReportFilename('IFIR', 'ODM', selectedOdms.value, dateRange.value)
+    downloadBlob(blob, filename || fallback)
+    ElMessage.success('报告生成成功')
+  } catch (error: any) {
+    console.error('报告生成失败:', error)
+    ElMessage.error(error?.message || '报告生成失败，请重试')
+  } finally {
+    exporting.value = false
+  }
+}
+
 onMounted(() => {
   loadOptions(true)
 })
@@ -367,5 +402,20 @@ onMounted(() => {
 .carousel-item {
   flex-shrink: 0;
   width: 100%;
+}
+
+.report-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 0;
+  margin-top: 20px;
+  border-top: 1px solid var(--el-border-color-lighter, #e4e7ed);
+
+  .export-hint {
+    font-size: 13px;
+    color: var(--el-text-color-secondary, #909399);
+  }
 }
 </style>

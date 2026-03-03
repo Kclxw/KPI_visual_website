@@ -31,6 +31,7 @@ export interface TopModel {
   ra: number
   ra_claim: number
   ra_mm: number
+  top_issues?: TopIssue[]
 }
 
 // Top ODM
@@ -273,5 +274,137 @@ export async function analyzeRaModel(params: {
     }
   }
   const response = await apiClient.post('/ra/model-analysis/analyze', request)
+  return response.data
+}
+
+// ==================== Report Download ====================
+
+export interface ReportDownloadResult {
+  blob: Blob
+  filename?: string
+}
+
+function _getFilename(headers: Record<string, string>): string | undefined {
+  const cd = headers['content-disposition']
+  if (!cd) return undefined
+  const m = cd.match(/filename\*=UTF-8''([^;]+)/i)
+  if (m?.[1]) return decodeURIComponent(m[1])
+  const m2 = cd.match(/filename="?([^";]+)"?/i)
+  return m2?.[1]
+}
+
+export async function downloadRaModelReport(params: {
+  start_month: string
+  end_month: string
+  models: string[]
+  segments?: string[]
+  odms?: string[]
+  tgt?: number
+}): Promise<ReportDownloadResult> {
+  const request = {
+    time_range: { start_month: params.start_month, end_month: params.end_month },
+    filters: { models: params.models, segments: params.segments, odms: params.odms },
+    tgt: params.tgt,
+  }
+  const response = await apiClient.post('/ra/report/model', request, {
+    responseType: 'blob', timeout: 120000,
+  })
+  return { blob: response.data, filename: _getFilename(response.headers as any) }
+}
+
+export async function downloadRaOdmReport(params: {
+  start_month: string
+  end_month: string
+  odms: string[]
+  segments?: string[]
+  models?: string[]
+  top_model_sort?: TopSort
+  tgt?: number
+}): Promise<ReportDownloadResult> {
+  const request = {
+    time_range: { start_month: params.start_month, end_month: params.end_month },
+    filters: { odms: params.odms, segments: params.segments, models: params.models },
+    view: { top_model_sort: params.top_model_sort },
+    tgt: params.tgt,
+  }
+  const response = await apiClient.post('/ra/report/odm', request, {
+    responseType: 'blob', timeout: 120000,
+  })
+  return { blob: response.data, filename: _getFilename(response.headers as any) }
+}
+
+export async function downloadRaSegmentReport(params: {
+  start_month: string
+  end_month: string
+  segments: string[]
+  odms?: string[]
+  models?: string[]
+  top_odm_sort?: TopSort
+  top_model_sort?: TopSort
+  tgt?: number
+}): Promise<ReportDownloadResult> {
+  const request = {
+    time_range: { start_month: params.start_month, end_month: params.end_month },
+    filters: { segments: params.segments, odms: params.odms, models: params.models },
+    view: { top_odm_sort: params.top_odm_sort, top_model_sort: params.top_model_sort },
+    tgt: params.tgt,
+  }
+  const response = await apiClient.post('/ra/report/segment', request, {
+    responseType: 'blob', timeout: 120000,
+  })
+  return { blob: response.data, filename: _getFilename(response.headers as any) }
+}
+
+
+// Issue 明细行
+export interface IssueDetailRow {
+  model: string
+  fault_category: string
+  problem_descr_by_tech?: string
+  claim_nbr: string
+  claim_month: string
+  plant?: string
+}
+
+// Issue 明细响应
+export interface IssueDetailResponse {
+  total: number
+  page: number
+  page_size: number
+  items: IssueDetailRow[]
+}
+
+/**
+ * RA Model Issue 明细
+ */
+export async function getRaModelIssueDetails(params: {
+  start_month: string
+  end_month: string
+  model: string
+  issue: string
+  month?: string
+  segments?: string[]
+  odms?: string[]
+  page?: number
+  page_size?: number
+}): Promise<IssueDetailResponse> {
+  const request = {
+    time_range: {
+      start_month: params.start_month,
+      end_month: params.end_month
+    },
+    filters: {
+      model: params.model,
+      issue: params.issue,
+      month: params.month,
+      segments: params.segments,
+      odms: params.odms
+    },
+    pagination: {
+      page: params.page ?? 1,
+      page_size: params.page_size ?? 10
+    }
+  }
+  const response = await apiClient.post('/ra/model-analysis/issue-details', request)
   return response.data
 }

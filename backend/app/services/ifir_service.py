@@ -1,10 +1,10 @@
-﻿
+
 """
 IFIR分析服务
 """
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, List
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, or_
 from sqlalchemy.orm import Session
 
 from app.models.tables import FactIfirRow, FactIfirDetail, MapOdmToPlant
@@ -18,9 +18,16 @@ from app.schemas.ifir import (
     MonthlyTopOdms,
     IfirModelAnalyzeRequest, IfirModelAnalyzeData,
     IfirModelCard, IfirModelSummary, TopIssueRow, ModelPieRow,
-    MonthlyTopIssues
+    MonthlyTopIssues,
+    IfirModelIssueRequest, IfirModelIssueDetailData, IfirModelIssueDetailRow,
+    IfirModelReportRequest, IfirOdmReportRequest, IfirSegmentReportRequest,
 )
 from app.schemas.common import TimeRange
+
+import logging
+from typing import Tuple
+
+logger = logging.getLogger(__name__)
 
 
 class IfirService:
@@ -38,6 +45,18 @@ class IfirService:
     def _format_month(self, d: date) -> str:
         """格式化日期为月份字符串"""
         return d.strftime("%Y-%m")
+
+    def _serialize_detail_value(self, key: str, value):
+        """Serialize exported detail values while preserving raw columns."""
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value.strftime("%Y-%m-%d %H:%M:%S")
+        if isinstance(value, date):
+            if key in {"claim_month", "delivery_month"}:
+                return self._format_month(value)
+            return value.strftime("%Y-%m-%d")
+        return value
     
     def _calc_ifir(self, box_claim: int, box_mm: int) -> float:
         """计算IFIR值"""
@@ -63,6 +82,17 @@ class IfirService:
                 reverse=True
             )
 
+    def _apply_detail_segment_filter(self, query, segments: Optional[List[str]]):
+        """IFIR DETAIL 的 Segment 实际可能落在 segment2，查询时兼容两个字段。"""
+        if not segments:
+            return query
+        return query.filter(
+            or_(
+                FactIfirDetail.segment.in_(segments),
+                FactIfirDetail.segment2.in_(segments),
+            )
+        )
+
     def _get_top_issue_by_model(
         self,
         start_date: date,
@@ -87,8 +117,7 @@ class IfirService:
             FactIfirDetail.fault_category.isnot(None),
             FactIfirDetail.fault_category != ""
         )
-        if segments:
-            issue_query = issue_query.filter(FactIfirDetail.segment.in_(segments))
+        issue_query = self._apply_detail_segment_filter(issue_query, segments)
         if plant_list:
             issue_query = issue_query.filter(FactIfirDetail.plant.in_(plant_list))
 
@@ -237,7 +266,8 @@ class IfirService:
 
         cards = []
         for odm in odms:
-            plant_list = odm_plant_map.get(odm) or None
+            # 若 ODM 在映射表中无记录，使用不可能匹配的哨兵值，避免 Top Issue 泄露为全量数据
+            plant_list = odm_plant_map.get(odm) or ["__no_match__"]
             # Block A - 趋势 (返回完整时间范围数据)
             trend_query = self.db.query(
                 FactIfirRow.delivery_month,
@@ -404,7 +434,8 @@ class IfirService:
                 MapOdmToPlant.kpi_type == "IFIR",
                 MapOdmToPlant.supplier_new.in_(odms)
             ).distinct().all()
-            plant_list = [r[0] for r in plant_rows]
+            # 若 ODM 在映射表中无记录，使用不可能匹配的哨兵值，避免 Top Issue 泄露为全量数据
+            plant_list = [r[0] for r in plant_rows] or ["__no_match__"]
         
         def apply_filters(query):
             query = query.filter(
@@ -658,7 +689,8 @@ class IfirService:
                 MapOdmToPlant.kpi_type == "IFIR",
                 MapOdmToPlant.supplier_new.in_(odms)
             ).distinct()
-            plant_list = [r[0] for r in plant_query.all()]
+            # 若 ODM 在映射表中无记录，使用不可能匹配的哨兵值，避免 Top Issue 泄露为全量数据
+            plant_list = [r[0] for r in plant_query.all()] or ["__no_match__"]
         
         # Block D - Model饼图汇总
         summary = None
@@ -730,8 +762,7 @@ class IfirService:
                 FactIfirDetail.model == model,
                 FactIfirDetail.fault_category.isnot(None)
             )
-            if segments:
-                issue_query = issue_query.filter(FactIfirDetail.segment.in_(segments))
+            issue_query = self._apply_detail_segment_filter(issue_query, segments)
             if plant_list:
                 issue_query = issue_query.filter(FactIfirDetail.plant.in_(plant_list))
             
@@ -759,8 +790,7 @@ class IfirService:
                 FactIfirDetail.model == model,
                 FactIfirDetail.fault_category.isnot(None)
             )
-            if segments:
-                monthly_issue_query = monthly_issue_query.filter(FactIfirDetail.segment.in_(segments))
+            monthly_issue_query = self._apply_detail_segment_filter(monthly_issue_query, segments)
             if plant_list:
                 monthly_issue_query = monthly_issue_query.filter(FactIfirDetail.plant.in_(plant_list))
             
@@ -812,5 +842,393 @@ class IfirService:
             summary=summary,
             cards=cards
         )
+
+    def get_model_issue_details(self, request: IfirModelIssueRequest) -> IfirModelIssueDetailData:
+        """IFIR Model Issue明细查询"""
+        start_date = self._parse_month(request.time_range.start_month)
+        end_date = self._parse_month(request.time_range.end_month)
+        model = request.filters.model
+        issue = request.filters.issue
+        segments = request.filters.segments
+        odms = request.filters.odms
+        page = request.pagination.page if request.pagination else 1
+        page_size = request.pagination.page_size if request.pagination else 10
+
+        plant_list = None
+        if odms:
+            plant_list = [r[0] for r in self.db.query(MapOdmToPlant.plant).filter(
+                MapOdmToPlant.kpi_type == "IFIR",
+                MapOdmToPlant.supplier_new.in_(odms)
+            ).distinct().all()] or ["__no_match__"]
+
+        query = self.db.query(FactIfirDetail).filter(
+            FactIfirDetail.delivery_month >= start_date,
+            FactIfirDetail.delivery_month <= end_date,
+            FactIfirDetail.model == model,
+            FactIfirDetail.fault_category == issue
+        )
+        query = self._apply_detail_segment_filter(query, segments)
+        if plant_list:
+            query = query.filter(FactIfirDetail.plant.in_(plant_list))
+
+        total = query.count()
+        rows = query.order_by(FactIfirDetail.delivery_month.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+        items = [
+            IfirModelIssueDetailRow(
+                model=r.model,
+                fault_category=r.fault_category,
+                problem_descr_by_tech=r.problem_descr_by_tech,
+                claim_nbr=r.claim_nbr,
+                claim_month=self._format_month(r.delivery_month or r.claim_month) if (r.delivery_month or r.claim_month) else "",
+                plant=r.plant
+            )
+            for r in rows
+        ]
+        return IfirModelIssueDetailData(total=total, page=page, page_size=page_size, items=items)
+
+    # ==================== Report Generation ====================
+
+    IFIR_DETAIL_COLUMNS = [
+        ("Claim_Nbr", "claim_nbr"),
+        ("Claim_Month", "claim_month"),
+        ("Claim_Date", "claim_date"),
+        ("Delivery_Month", "delivery_month"),
+        ("Delivery_Day", "delivery_day"),
+        ("Geo_2012", "geo_2012"),
+        ("Financial_Region", "financial_region"),
+        ("Plant", "plant"),
+        ("Brand", "brand"),
+        ("Segment", "segment"),
+        ("Segment2", "segment2"),
+        ("Style", "style"),
+        ("Series", "series"),
+        ("Model", "model"),
+        ("MTM", "mtm"),
+        ("Serial_Nbr", "serial_nbr"),
+        ("StationName", "stationname"),
+        ("Station_Id", "station_id"),
+        ("Data_Source", "data_source"),
+        ("Lastsln", "lastsln"),
+        ("Failure_Code", "failure_code"),
+        ("Fault_Category", "fault_category"),
+        ("Mach_Desc", "mach_desc"),
+        ("Problem_Descr", "problem_descr"),
+        ("Problem_Descr_By_Tech", "problem_descr_by_tech"),
+        ("Commodity", "commodity"),
+        ("Down_Part_Code", "down_part_code"),
+        ("Part_Nbr", "part_nbr"),
+        ("Part_Desc", "part_desc"),
+        ("Part_Supplier", "part_supplier"),
+        ("Part_Barcode", "part_barcode"),
+        ("Packing_Lot_No", "packing_lot_no"),
+        ("Claim_Item_Nbr", "claim_item_nbr"),
+        ("Claim_Status", "claim_status"),
+        ("Channel", "channel"),
+        ("Cust_Nbr", "cust_nbr"),
+        ("Load_Ts", "load_ts"),
+    ]
+
+    def _resolve_detail_plants_ifir(
+        self,
+        start_date: date,
+        end_date: date,
+        odms: Optional[List[str]] = None,
+        segments: Optional[List[str]] = None,
+        models: Optional[List[str]] = None,
+    ) -> Optional[List[str]]:
+        """将 ODM 列表动态解析为 plant 列表（IFIR）"""
+        if not odms:
+            return None
+
+        row_query = self.db.query(FactIfirRow.plant).filter(
+            FactIfirRow.delivery_month >= start_date,
+            FactIfirRow.delivery_month <= end_date,
+            FactIfirRow.supplier_new.in_(odms),
+            FactIfirRow.plant.isnot(None),
+            func.trim(FactIfirRow.plant) != "",
+        )
+        if segments:
+            row_query = row_query.filter(FactIfirRow.segment.in_(segments))
+        if models:
+            row_query = row_query.filter(FactIfirRow.model.in_(models))
+
+        plants = {
+            p.strip() for (p,) in row_query.distinct().all() if p and p.strip()
+        }
+
+        map_query = self.db.query(MapOdmToPlant.plant).filter(
+            MapOdmToPlant.kpi_type == "IFIR",
+            MapOdmToPlant.supplier_new.in_(odms),
+        )
+        plants.update(
+            p.strip() for (p,) in map_query.distinct().all() if p and p.strip()
+        )
+        return sorted(plants) if plants else ["__no_match__"]
+
+    def _get_detail_for_report(
+        self,
+        start_date: date,
+        end_date: date,
+        models: Optional[List[str]] = None,
+        segments: Optional[List[str]] = None,
+        odms: Optional[List[str]] = None,
+        max_rows: int = 100000,
+    ) -> Tuple[list, int, bool]:
+        """获取 IFIR Detail 全量数据（供报告使用）"""
+        detail_fields = [getattr(FactIfirDetail, key) for _, key in self.IFIR_DETAIL_COLUMNS]
+
+        query = self.db.query(*detail_fields).filter(
+            FactIfirDetail.delivery_month >= start_date,
+            FactIfirDetail.delivery_month <= end_date,
+        )
+
+        if models:
+            query = query.filter(FactIfirDetail.model.in_(models))
+        query = self._apply_detail_segment_filter(query, segments)
+
+        plant_list = self._resolve_detail_plants_ifir(
+            start_date, end_date, odms=odms, segments=segments, models=models
+        )
+        if plant_list:
+            query = query.filter(FactIfirDetail.plant.in_(plant_list))
+
+        col_keys = [k for _, k in self.IFIR_DETAIL_COLUMNS]
+        detail = []
+        truncated = False
+        for idx, r in enumerate(
+            query.order_by(FactIfirDetail.delivery_month.desc()).limit(max_rows + 1)
+        ):
+            if idx >= max_rows:
+                truncated = True
+                break
+            d = {}
+            for i, key in enumerate(col_keys):
+                d[key] = self._serialize_detail_value(key, r[i])
+            detail.append(d)
+
+        total = max_rows + 1 if truncated else len(detail)
+        return detail, total, truncated
+
+    # ----- generate report helpers -----
+
+    def _build_trend_entities(self, cards, entity_key: str) -> list:
+        return [
+            {
+                "name": getattr(card, entity_key) if hasattr(card, entity_key) else card.get(entity_key, ""),
+                "trend": [
+                    {"month": t.month, "value": t.ifir}
+                    for t in (card.trend if hasattr(card, 'trend') else [])
+                ],
+            }
+            for card in cards
+        ]
+
+    def generate_model_report(self, request: IfirModelReportRequest) -> Tuple[str, str]:
+        from tempfile import NamedTemporaryFile
+        from app.services.report_chart import generate_trend_chart, generate_pie_chart
+        from app.services.report_excel import ReportExcelBuilder, build_report_filename
+
+        analyze_req = IfirModelAnalyzeRequest(
+            time_range=request.time_range, filters=request.filters
+        )
+        data = self.analyze_model(analyze_req)
+
+        start_date = self._parse_month(request.time_range.start_month)
+        end_date = self._parse_month(request.time_range.end_month)
+        detail_rows, detail_total, truncated = self._get_detail_for_report(
+            start_date, end_date,
+            models=request.filters.models,
+            segments=request.filters.segments,
+            odms=request.filters.odms,
+        )
+
+        trend_entities = self._build_trend_entities(data.cards, "model")
+        trend_png = generate_trend_chart(trend_entities, tgt=request.tgt,
+                                          value_label="IFIR", title="IFIR Model 趋势对比")
+
+        pie_png = None
+        pie_table = []
+        if data.summary and data.summary.model_pie:
+            pie_items = [{"name": p.model, "value": p.ifir * 1_000_000, "share": p.share}
+                         for p in data.summary.model_pie]
+            pie_png = generate_pie_chart(pie_items, value_label="IFIR", title="Model IFIR 占比")
+            pie_table = [
+                {"name": p.model, "dppm": round(p.ifir * 1_000_000),
+                 "share": p.share, "box_claim": p.box_claim, "box_mm": p.box_mm}
+                for p in data.summary.model_pie
+            ]
+
+        builder = ReportExcelBuilder(kpi_type="IFIR", dimension="Model")
+        builder.add_info_sheet(meta={
+            "data_as_of": data.meta.data_as_of,
+            "time_range": f"{request.time_range.start_month} ~ {request.time_range.end_month}",
+            "entities": ", ".join(request.filters.models),
+            "extra_filters": {
+                "筛选Segment": ", ".join(request.filters.segments) if request.filters.segments else "全部",
+                "筛选ODM": ", ".join(request.filters.odms) if request.filters.odms else "全部",
+            },
+        }, tgt=request.tgt)
+        builder.add_trend_sheet(trend_entities, trend_png, value_key="ifir", unit_label="IFIR")
+
+        cards_dict = [c.dict() if hasattr(c, 'dict') else c.model_dump() for c in data.cards]
+        builder.add_top_issue_sheet(cards_dict, entity_key="model")
+        builder.add_monthly_top_issue_sheet(cards_dict, entity_key="model")
+        builder.add_detail_sheet(detail_rows, self.IFIR_DETAIL_COLUMNS, detail_total, truncated)
+
+        if pie_png:
+            builder.add_comparison_sheet(pie_table, pie_png, entity_key="name",
+                                          value_label="IFIR", claim_key="box_claim", mm_key="box_mm")
+
+        filename = build_report_filename("IFIR", "Model", request.filters.models,
+                                          request.time_range.start_month, request.time_range.end_month)
+        with NamedTemporaryFile(prefix="ifir-model-", suffix=".xlsx", delete=False) as tmp:
+            builder.save_to_file(tmp.name)
+            return tmp.name, filename
+
+    def generate_odm_report(self, request: IfirOdmReportRequest) -> Tuple[str, str]:
+        from tempfile import NamedTemporaryFile
+        from app.services.report_chart import generate_trend_chart, generate_pie_chart
+        from app.services.report_excel import ReportExcelBuilder, build_report_filename
+
+        analyze_req = IfirOdmAnalyzeRequest(
+            time_range=request.time_range, filters=request.filters,
+            view=request.view,
+        )
+        data = self.analyze_odm(analyze_req)
+
+        start_date = self._parse_month(request.time_range.start_month)
+        end_date = self._parse_month(request.time_range.end_month)
+        detail_rows, detail_total, truncated = self._get_detail_for_report(
+            start_date, end_date,
+            models=request.filters.models,
+            segments=request.filters.segments,
+            odms=request.filters.odms,
+        )
+
+        trend_entities = [
+            {"name": c.odm, "trend": [{"month": t.month, "value": t.ifir} for t in c.trend]}
+            for c in data.cards
+        ]
+        trend_png = generate_trend_chart(trend_entities, tgt=request.tgt,
+                                          value_label="IFIR", title="IFIR ODM 趋势对比")
+
+        pie_png = None
+        pie_table = []
+        if data.summary and data.summary.odm_pie:
+            pie_items = [{"name": p.odm, "value": p.ifir * 1_000_000, "share": p.share}
+                         for p in data.summary.odm_pie]
+            pie_png = generate_pie_chart(pie_items, value_label="IFIR", title="ODM IFIR 占比")
+            pie_table = [
+                {"name": p.odm, "dppm": round(p.ifir * 1_000_000),
+                 "share": p.share, "box_claim": p.box_claim, "box_mm": p.box_mm}
+                for p in data.summary.odm_pie
+            ]
+
+        builder = ReportExcelBuilder(kpi_type="IFIR", dimension="ODM")
+        sort_label = (request.view.top_model_sort if request.view else "claim").upper()
+        builder.add_info_sheet(meta={
+            "data_as_of": data.meta.data_as_of,
+            "time_range": f"{request.time_range.start_month} ~ {request.time_range.end_month}",
+            "entities": ", ".join(request.filters.odms),
+            "extra_filters": {
+                "筛选Segment": ", ".join(request.filters.segments) if request.filters.segments else "全部",
+                "筛选Model": ", ".join(request.filters.models) if request.filters.models else "全部",
+                "Top Model排序": sort_label,
+            },
+        }, tgt=request.tgt)
+        builder.add_trend_sheet(trend_entities, trend_png, value_key="ifir", unit_label="IFIR")
+
+        cards_dict = [c.dict() if hasattr(c, 'dict') else c.model_dump() for c in data.cards]
+        builder.add_top_model_sheet(cards_dict, entity_key="odm", value_label="IFIR",
+                                     claim_key="box_claim", mm_key="box_mm")
+        builder.add_monthly_top_model_sheet(cards_dict, entity_key="odm", value_label="IFIR",
+                                             claim_key="box_claim", mm_key="box_mm")
+        builder.add_detail_sheet(detail_rows, self.IFIR_DETAIL_COLUMNS, detail_total, truncated)
+
+        if pie_png:
+            builder.add_comparison_sheet(pie_table, pie_png, entity_key="name",
+                                          value_label="IFIR", claim_key="box_claim", mm_key="box_mm")
+
+        filename = build_report_filename("IFIR", "ODM", request.filters.odms,
+                                          request.time_range.start_month, request.time_range.end_month)
+        with NamedTemporaryFile(prefix="ifir-odm-", suffix=".xlsx", delete=False) as tmp:
+            builder.save_to_file(tmp.name)
+            return tmp.name, filename
+
+    def generate_segment_report(self, request: IfirSegmentReportRequest) -> Tuple[str, str]:
+        from tempfile import NamedTemporaryFile
+        from app.services.report_chart import generate_trend_chart, generate_pie_chart
+        from app.services.report_excel import ReportExcelBuilder, build_report_filename
+
+        analyze_req = IfirSegmentAnalyzeRequest(
+            time_range=request.time_range, filters=request.filters,
+            view=request.view,
+        )
+        data = self.analyze_segment(analyze_req)
+
+        start_date = self._parse_month(request.time_range.start_month)
+        end_date = self._parse_month(request.time_range.end_month)
+        detail_rows, detail_total, truncated = self._get_detail_for_report(
+            start_date, end_date,
+            models=request.filters.models,
+            segments=request.filters.segments,
+            odms=request.filters.odms,
+        )
+
+        trend_entities = [
+            {"name": c.segment, "trend": [{"month": t.month, "value": t.ifir} for t in c.trend]}
+            for c in data.cards
+        ]
+        trend_png = generate_trend_chart(trend_entities, tgt=request.tgt,
+                                          value_label="IFIR", title="IFIR Segment 趋势对比")
+
+        pie_png = None
+        pie_table = []
+        if data.summary and data.summary.segment_pie:
+            pie_items = [{"name": p.segment, "value": p.ifir * 1_000_000, "share": p.share}
+                         for p in data.summary.segment_pie]
+            pie_png = generate_pie_chart(pie_items, value_label="IFIR", title="Segment IFIR 占比")
+            pie_table = [
+                {"name": p.segment, "dppm": round(p.ifir * 1_000_000),
+                 "share": p.share, "box_claim": p.box_claim, "box_mm": p.box_mm}
+                for p in data.summary.segment_pie
+            ]
+
+        builder = ReportExcelBuilder(kpi_type="IFIR", dimension="Segment")
+        view = request.view
+        builder.add_info_sheet(meta={
+            "data_as_of": data.meta.data_as_of,
+            "time_range": f"{request.time_range.start_month} ~ {request.time_range.end_month}",
+            "entities": ", ".join(request.filters.segments),
+            "extra_filters": {
+                "筛选ODM": ", ".join(request.filters.odms) if request.filters.odms else "全部",
+                "筛选Model": ", ".join(request.filters.models) if request.filters.models else "全部",
+                "Top ODM排序": (view.top_odm_sort if view else "claim").upper(),
+                "Top Model排序": (view.top_model_sort if view else "claim").upper(),
+            },
+        }, tgt=request.tgt)
+        builder.add_trend_sheet(trend_entities, trend_png, value_key="ifir", unit_label="IFIR")
+
+        cards_dict = [c.dict() if hasattr(c, 'dict') else c.model_dump() for c in data.cards]
+        builder.add_top_odm_sheet(cards_dict, value_label="IFIR",
+                                   claim_key="box_claim", mm_key="box_mm")
+        builder.add_monthly_top_odm_sheet(cards_dict, value_label="IFIR",
+                                           claim_key="box_claim", mm_key="box_mm")
+        builder.add_top_model_sheet(cards_dict, entity_key="segment", value_label="IFIR",
+                                     claim_key="box_claim", mm_key="box_mm")
+        builder.add_monthly_top_model_sheet(cards_dict, entity_key="segment", value_label="IFIR",
+                                             claim_key="box_claim", mm_key="box_mm")
+        builder.add_detail_sheet(detail_rows, self.IFIR_DETAIL_COLUMNS, detail_total, truncated)
+
+        if pie_png:
+            builder.add_comparison_sheet(pie_table, pie_png, entity_key="name",
+                                          value_label="IFIR", claim_key="box_claim", mm_key="box_mm")
+
+        filename = build_report_filename("IFIR", "Segment", request.filters.segments,
+                                          request.time_range.start_month, request.time_range.end_month)
+        with NamedTemporaryFile(prefix="ifir-seg-", suffix=".xlsx", delete=False) as tmp:
+            builder.save_to_file(tmp.name)
+            return tmp.name, filename
 
 

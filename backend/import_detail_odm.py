@@ -148,6 +148,10 @@ def import_ifir_detail():
                     claim_nbr = str(row.get("claim_nbr", "")).strip()
                     if not claim_nbr:
                         continue
+                    segment2_value = str(row.get("segment2", ""))[:64] if pd.notna(row.get("segment2")) else None
+                    segment_value = (
+                        str(row.get("segment", ""))[:64] if pd.notna(row.get("segment")) else None
+                    ) or segment2_value
                     
                     record = FactIfirDetail(
                         claim_nbr=claim_nbr,
@@ -159,8 +163,8 @@ def import_ifir_detail():
                         financial_region=str(row.get("financial_region", ""))[:64] if pd.notna(row.get("financial_region")) else None,
                         plant=str(row.get("plant", ""))[:64] if pd.notna(row.get("plant")) else None,
                         brand=str(row.get("brand", ""))[:64] if pd.notna(row.get("brand")) else None,
-                        segment=str(row.get("segment", ""))[:64] if pd.notna(row.get("segment")) else None,
-                        segment2=str(row.get("segment2", ""))[:64] if pd.notna(row.get("segment2")) else None,
+                        segment=segment_value,
+                        segment2=segment2_value,
                         style=str(row.get("style", ""))[:64] if pd.notna(row.get("style")) else None,
                         series=str(row.get("series", ""))[:128] if pd.notna(row.get("series")) else None,
                         model=str(row.get("model", ""))[:128] if pd.notna(row.get("model")) else None,
@@ -287,6 +291,10 @@ def import_ra_detail():
                     claim_nbr = str(row.get("claim_nbr", "")).strip()
                     if not claim_nbr:
                         continue
+                    segment2_value = str(row.get("segment2", ""))[:64] if pd.notna(row.get("segment2")) else None
+                    segment_value = (
+                        str(row.get("segment", ""))[:64] if pd.notna(row.get("segment")) else None
+                    ) or segment2_value
                     
                     record = FactRaDetail(
                         claim_nbr=claim_nbr,
@@ -296,8 +304,8 @@ def import_ra_detail():
                         financial_region=str(row.get("financial_region", ""))[:64] if pd.notna(row.get("financial_region")) else None,
                         plant=str(row.get("plant", ""))[:64] if pd.notna(row.get("plant")) else None,
                         brand=str(row.get("brand", ""))[:64] if pd.notna(row.get("brand")) else None,
-                        segment=str(row.get("segment", ""))[:64] if pd.notna(row.get("segment")) else None,
-                        segment2=str(row.get("segment2", ""))[:64] if pd.notna(row.get("segment2")) else None,
+                        segment=segment_value,
+                        segment2=segment2_value,
                         style=str(row.get("style", ""))[:64] if pd.notna(row.get("style")) else None,
                         series=str(row.get("series", ""))[:128] if pd.notna(row.get("series")) else None,
                         model=str(row.get("model", ""))[:128] if pd.notna(row.get("model")) else None,

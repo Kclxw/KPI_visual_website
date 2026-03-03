@@ -12,6 +12,7 @@ cryptography==41.0.7
 pandas==2.1.4
 openpyxl==3.1.2
 numpy==1.26.3
+matplotlib>=3.8.0
 
 # Validation & Utils
 pydantic==2.5.3

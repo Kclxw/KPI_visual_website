@@ -1,8 +1,11 @@
 """
 IFIR分析API路由
 """
+from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+from urllib.parse import quote
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -13,7 +16,8 @@ from app.schemas.ifir import (
     IfirOdmAnalyzeRequest, IfirOdmAnalyzeResponse,
     IfirSegmentAnalyzeRequest, IfirSegmentAnalyzeResponse,
     IfirModelAnalyzeRequest, IfirModelAnalyzeResponse,
-    IfirModelIssueRequest, IfirModelIssueDetailResponse
+    IfirModelIssueRequest, IfirModelIssueDetailResponse,
+    IfirModelReportRequest, IfirOdmReportRequest, IfirSegmentReportRequest,
 )
 
 router = APIRouter(prefix="/ifir", tags=["IFIR分析"], dependencies=[Depends(get_current_user)])
@@ -180,3 +184,71 @@ async def model_issue_details(
         return IfirModelIssueDetailResponse(data=data)
     except Exception as e:
         return IfirModelIssueDetailResponse(code=500, message=str(e))
+
+
+# ==================== Report API ====================
+
+EXCEL_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@router.post("/report/model")
+async def generate_ifir_model_report(
+    request: IfirModelReportRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """生成 IFIR Model 分析报告 Excel"""
+    try:
+        service = IfirService(db)
+        file_path, filename = service.generate_model_report(request)
+        path = Path(file_path)
+        background_tasks.add_task(path.unlink, missing_ok=True)
+        return FileResponse(
+            path=path, media_type=EXCEL_MEDIA,
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+            background=background_tasks,
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"code": 500, "message": str(e)})
+
+
+@router.post("/report/odm")
+async def generate_ifir_odm_report(
+    request: IfirOdmReportRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """生成 IFIR ODM 分析报告 Excel"""
+    try:
+        service = IfirService(db)
+        file_path, filename = service.generate_odm_report(request)
+        path = Path(file_path)
+        background_tasks.add_task(path.unlink, missing_ok=True)
+        return FileResponse(
+            path=path, media_type=EXCEL_MEDIA,
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+            background=background_tasks,
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"code": 500, "message": str(e)})
+
+
+@router.post("/report/segment")
+async def generate_ifir_segment_report(
+    request: IfirSegmentReportRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """生成 IFIR Segment 分析报告 Excel"""
+    try:
+        service = IfirService(db)
+        file_path, filename = service.generate_segment_report(request)
+        path = Path(file_path)
+        background_tasks.add_task(path.unlink, missing_ok=True)
+        return FileResponse(
+            path=path, media_type=EXCEL_MEDIA,
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+            background=background_tasks,
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"code": 500, "message": str(e)})

@@ -101,6 +101,16 @@
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
           <el-table-column prop="model" label="Model" min-width="120" />
+          <el-table-column label="Top Issue" min-width="220">
+            <template #default="{ row }">
+              <div class="issue-list" v-if="row.top_issues?.length">
+                <el-link v-for="issue in row.top_issues" :key="issue.issue" type="primary" :underline="false" @click.stop.prevent="openIssueDetails(row.model, issue.issue)">
+                  {{ formatIssueLabel(issue) }}
+                </el-link>
+              </div>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="ra" label="RA (DPPM)" width="120" :class-name="topModelSort === 'ra' ? 'sort-active' : ''"><template #default="{ row }">{{ formatDppm(row.ra) }}</template></el-table-column>
           <el-table-column prop="ra_claim" label="RA CLAIM" width="100" align="right" :class-name="topModelSort === 'claim' ? 'sort-active' : ''" />
           <el-table-column prop="ra_mm" label="RA MM" width="100" align="right" />
@@ -117,6 +127,16 @@
             <template #default="{ row }"><el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 6 ? 'warning' : 'info'" size="small">#{{ row.rank }}</el-tag></template>
           </el-table-column>
           <el-table-column prop="model" label="Model" min-width="120" />
+          <el-table-column label="Top Issue" min-width="220">
+            <template #default="{ row }">
+              <div class="issue-list" v-if="row.top_issues?.length">
+                <el-link v-for="issue in row.top_issues" :key="issue.issue" type="primary" :underline="false" @click.stop.prevent="openIssueDetails(row.model, issue.issue)">
+                  {{ formatIssueLabel(issue) }}
+                </el-link>
+              </div>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="ra" label="RA (DPPM)" width="120" :class-name="topModelSort === 'ra' ? 'sort-active' : ''"><template #default="{ row }">{{ formatDppm(row.ra) }}</template></el-table-column>
           <el-table-column prop="ra_claim" label="RA CLAIM" width="100" align="right" :class-name="topModelSort === 'claim' ? 'sort-active' : ''" />
           <el-table-column prop="ra_mm" label="RA MM" width="100" align="right" />
@@ -145,6 +165,31 @@
         <p><strong>百分比：</strong>{{ formatPercent(detailData.value) }}</p>
       </div>
     </el-dialog>
+
+    <!-- Issue 明细弹窗 -->
+    <el-dialog v-model="issueDialogVisible" :title="issueDialogTitle" width="900px" :close-on-click-modal="true">
+      <el-table :data="issueRows" stripe style="width: 100%" size="small" v-loading="issueLoading" max-height="400">
+        <el-table-column prop="model" label="Model" min-width="120" />
+        <el-table-column prop="fault_category" label="不良现象" min-width="180" />
+        <el-table-column prop="problem_descr_by_tech" label="Problem_Descr_by_Tech" min-width="260">
+          <template #default="{ row }">{{ row.problem_descr_by_tech || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="claim_nbr" label="Claim_Nbr" min-width="140" />
+        <el-table-column prop="claim_month" label="Claim_Month" width="120" />
+        <el-table-column prop="plant" label="Plant" width="120" />
+      </el-table>
+      <div class="pagination-bar">
+        <el-pagination
+          v-model:current-page="issuePage"
+          v-model:page-size="issuePageSize"
+          :total="issueTotal"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next"
+          @current-change="handleIssuePageChange"
+          @size-change="handleIssuePageSizeChange"
+        />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -152,13 +197,15 @@
 import { ref, onMounted, onActivated, watch, computed } from 'vue'
 import * as echarts from 'echarts'
 import { PieChart, TrendCharts, OfficeBuilding, Medal, MagicStick } from '@element-plus/icons-vue'
-import type { SegmentCard as SegmentCardData } from '@/api/ra'
+import { getRaModelIssueDetails, type SegmentCard as SegmentCardData, type IssueDetailRow, type TopIssue } from '@/api/ra'
 
 type TopSort = 'claim' | 'ra'
 
 const props = defineProps<{
   segment: string
   data: SegmentCardData
+  timeRange: { start_month: string; end_month: string }
+  odms?: string[]
   topOdmSort: TopSort
   topModelSort: TopSort
 }>()
@@ -173,6 +220,66 @@ let chartInstance: echarts.ECharts | null = null
 const chartMode = ref<'yearly' | 'timeline'>('timeline')
 const detailVisible = ref(false)
 const detailData = ref({ month: '', value: 0 })
+
+// Issue 明细弹窗
+const issueDialogVisible = ref(false)
+const issueRows = ref<IssueDetailRow[]>([])
+const issueLoading = ref(false)
+const issueTotal = ref(0)
+const issuePage = ref(1)
+const issuePageSize = ref(10)
+const currentIssue = ref('')
+const currentIssueModel = ref('')
+const currentIssueMonth = ref('')
+const issueDialogTitle = computed(() => currentIssue.value ? `Issue 明细：${currentIssue.value}` : 'Issue 明细')
+
+const formatIssueLabel = (issue: TopIssue) => `${issue.issue} * ${issue.count}`
+
+const openIssueDetails = async (model: string, issue: string) => {
+  if (!issue || !model) return
+  currentIssue.value = issue
+  currentIssueModel.value = model
+  currentIssueMonth.value = topModelTab.value === 'monthly' ? selectedModelMonth.value : ''
+  issuePage.value = 1
+  issueDialogVisible.value = true
+  await fetchIssueDetails()
+}
+
+const fetchIssueDetails = async () => {
+  if (!currentIssue.value || !currentIssueModel.value) return
+  issueLoading.value = true
+  try {
+    const result = await getRaModelIssueDetails({
+      start_month: props.timeRange.start_month,
+      end_month: props.timeRange.end_month,
+      model: currentIssueModel.value,
+      issue: currentIssue.value,
+      month: currentIssueMonth.value || undefined,
+      segments: [props.segment],
+      odms: props.odms?.length ? props.odms : undefined,
+      page: issuePage.value,
+      page_size: issuePageSize.value
+    })
+    issueRows.value = result.items || []
+    issueTotal.value = result.total || 0
+  } catch {
+    issueRows.value = []
+    issueTotal.value = 0
+  } finally {
+    issueLoading.value = false
+  }
+}
+
+const handleIssuePageChange = async (page: number) => {
+  issuePage.value = page
+  await fetchIssueDetails()
+}
+
+const handleIssuePageSizeChange = async (size: number) => {
+  issuePageSize.value = size
+  issuePage.value = 1
+  await fetchIssueDetails()
+}
 
 // Top ODM Tab切换
 const topOdmTab = ref<'summary' | 'monthly'>('summary')
@@ -342,6 +449,9 @@ window.addEventListener('resize', () => chartInstance?.resize())
 }
 .detail-content { p { margin: 12px 0; font-size: 14px; } }
 .month-selector { margin-bottom: 12px; }
+.issue-list { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.issue-list :deep(.el-link) { display: block; width: 100%; }
+.pagination-bar { margin-top: 12px; display: flex; justify-content: flex-end; }
 :deep(th.sort-active) { background: #f3f8ff; }
 :deep(td.sort-active) { background: #f9fbff; }
 :deep(.sort-active .cell) { font-weight: 600; color: #409eff; }
